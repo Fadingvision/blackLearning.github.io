@@ -14,7 +14,7 @@ github_username:  blackLearning
 # Build settings
 markdown: rdiscount
 encoding: utf-8
-paginate: 3
+paginate: 4
 gems: [jekyll-paginate]
 paginate_path: "page:num"
 permalink: /:categories/:title.html
