@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html>
+    <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>blackLearning's blog</title>
+    <meta name="description" content="blackLearning's blog - blackLearning's blog - (fuyigekua@foxmail.com)">
+
+    <link rel="stylesheet" href=" /css/bootstrap.min.css ">
+    <link rel="stylesheet" href=" /css/main.css ">
+    <link rel="shortcut icon" href="/img/favicon.ico"/>
+    <link rel="bookmark" href="/img/favicon.ico"/>
+</head>
+
+<body>
+    <div class="skin-container"></div>
+    <header>
+    <div class="container">
+        <div class="row">
+            <div class="col-sm-12">
+                <p class="header-content">
+                    天亮的日子还多着呢,太阳不过是一颗晓星
+                </p>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+    <nav class="main-navgation">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-3"></div>
+                <div class="col-md-6">
+                    <div class="nav navbar-default">
+                        <div class="navbar-header">
+                            <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#navbarCollapse">
+                                <span class="sr-only">Toggle navigation</span>
+                                <span class="icon-bar"></span>
+                                <span class="icon-bar"></span>
+                                <span class="icon-bar"></span>
+                            </button>
+                        </div>
+                        <div class="collapse navbar-collapse" id="navbarCollapse">
+                            <ul class="nav navbar-nav">
+                                <li><a href="/index.html">首 页</a></li>
+                                <li><a href="/categories.html">分 类</a></li>
+                                <li><a href="/tags.html">标 签</a></li>
+                                <li><a href="/archives.html">归 档</a></li>
+                                <li><a href="/about.html">关 于</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3"></div>
+            </div>
+        </div>
+    </nav>
+    <section class="content-container">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-8">
+                                        <div class="blog-content">
+                      
+                        <article class="post">
+                            <div class="post-head">
+                                <h3 class="post-title"><a href="/javascript/high-performance.html">高性能js学习笔记</a></h3>
+                                <p class="post-date"><span class="glyphicon glyphicon-time"></span>04 Jan 2016</p>
+                            </div>
+                            <div class="post-pic">
+                                <img src="img/4.jpg" alt="">
+                            </div>
+                            <div class="post-content">
+                                <p><h3>高性能JavaScript学习笔记</h3>
+
+<h4>一、加载和执行</h4>
+
+<ol>
+<li>脚本文件应该放在body标签的最后面。</li>
+<li>合并多个script以减少Http请求。</li>
+<li>无阻塞的脚本：</li>
+<li>为script标签添加defer属性（仅ie 和firefox支持）</li>
+<li>使用dom操作动态加载脚本。（推荐）</li>
+</ol>
+
+</p>
+
+                                <a href="/javascript/high-performance.html" class="btn btn-primary">阅读全文</a>
+                            </div>
+                            <div class="post-tags">
+                                <span class="glyphicon glyphicon-tags"></span>
+                                
+                                <span class="post-tag">javascript</span>   
+                                
+                                <span class="post-tag">高性能</span>   
+                                   
+                            </div>
+                        </article>
+                        
+                        <article class="post">
+                            <div class="post-head">
+                                <h3 class="post-title"><a href="/javascript/js.html">编写高质量JavaScript的有效方法</a></h3>
+                                <p class="post-date"><span class="glyphicon glyphicon-time"></span>08 Dec 2015</p>
+                            </div>
+                            <div class="post-pic">
+                                <img src="img/2.jpg" alt="">
+                            </div>
+                            <div class="post-content">
+                                <p><h3>编写高质量JavaScript的有效方法</h3>
+
+<h4>一、js的特别之处</h4>
+
+<ol>
+<li>浮点数计算不精确，应该尽量转为整数进行计算</li>
+<li><strong>当心强制的类型转换。</strong>
+NaN是js中唯一一个不等于自身的值，可以利用这一点来检测NaN.
+js中的七个假值：false,0,-0,null,undefined,NaN,"".</li>
+<li>当参数类型不同时， == 运算符会对参数用一套难以理解的隐式强制转换的规则进行转换，所以应尽量使用 === 运算符，比较不同类型的值时，先进行手动的转换后在进行比较。</li>
+<li>分号插入规则</li>
+<li>分号仅在}标记之前、一个或多个换行之后和程序输入的结尾插入</li>
+<li>分后仅在后面的输入标记不能解析时插入</li>
+<li>for循环头部var i=0之后必须显式的插入分号</li>
+<li>在return , throw, break, continue, ++ ,-- 的参数之前绝对不能换行，否则会在换行前强制插入分号
+
+<blockquote><p>如果下一条语句以(, {,  +,  -. / 开始时，前一行语句不能省略分号，否则会视为同一行语句执行。</p></blockquote></li>
+</ol>
+
+</p>
+
+                                <a href="/javascript/js.html" class="btn btn-primary">阅读全文</a>
+                            </div>
+                            <div class="post-tags">
+                                <span class="glyphicon glyphicon-tags"></span>
+                                
+                                <span class="post-tag">javascript</span>   
+                                   
+                            </div>
+                        </article>
+                        
+                        <article class="post">
+                            <div class="post-head">
+                                <h3 class="post-title"><a href="/javascript/learn-js-partern.html">JavaScript设计模式学习笔记</a></h3>
+                                <p class="post-date"><span class="glyphicon glyphicon-time"></span>04 Dec 2015</p>
+                            </div>
+                            <div class="post-pic">
+                                <img src="img/3.jpg" alt="">
+                            </div>
+                            <div class="post-content">
+                                <p><h2>JavaScript设计模式学习笔记</h2>
+
+<h4>一、富有表现力的javascript</h4>
+
+<ul>
+<li>函数运行在定义它的作用域中，而不是调用它的作用域中，利用这一点和闭包联合使用，就能把变量保存在匿名函数中加以保护。
+
+<h4>二、接口</h4></li>
+<li>模仿接口</li>
+<li>用注释模仿接口</li>
+<li>用属性检查模仿接口</li>
+<li>用鸭式辨型模仿接口</li>
+</ul>
+
+</p>
+
+                                <a href="/javascript/learn-js-partern.html" class="btn btn-primary">阅读全文</a>
+                            </div>
+                            <div class="post-tags">
+                                <span class="glyphicon glyphicon-tags"></span>
+                                
+                                <span class="post-tag">javascript</span>   
+                                
+                                <span class="post-tag">设计模式</span>   
+                                   
+                            </div>
+                        </article>
+                        
+                        <div class="page-container">
+                            
+                            <span class="btn btn-primary">第 1 页 ⁄ 共 1 页</span>
+                            
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="sidebar-content">
+                        <div class="widget">
+                            <h4 class="title"><span class="glyphicon glyphicon-search"></span>搜   索</h4>
+                            <form action="" method="get">
+                                <div class="input-group">
+                                    <input type="text" name="q" class="form-control">
+                                    <span class="input-group-btn">
+                                    <button class="btn btn-primary" type="submit">
+                                        <span class="glyphicon glyphicon-search"></span>
+                                    </button>
+                                    </span>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="widget">
+                            <h4 class="title"><span class="glyphicon glyphicon-calendar"></span>日  历</h4>
+                            <div id="calendar">
+		<p><span id="prevYear" title="上一年">&lt;&lt;</span><span id="prevMonth" title="前一月">&lt;</span><input type="text" class="date-year" id="dateYear">年<input type="" class="date-month" id="dateMonth">月<span id="nextMonth" title="后一月">&gt;</span><span id="nextYear" title="下一年">&gt;&gt;</span></p>
+		<table>
+			<thead>
+				<td class="weekend">日</td>
+				<td>一</td>
+				<td>二</td>
+				<td>三</td>
+				<td>四</td>
+				<td>五</td>
+				<td class="weekend">六</td>
+			</thead>
+			<tbody>
+				<tr>
+					<td></td>
+					<td></td>
+					<td></td>
+					<td></td>
+					<td></td>
+					<td></td>
+					<td></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td></td>
+					<td></td>
+					<td></td>
+					<td></td>
+					<td></td>
+					<td></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td></td>
+					<td></td>
+					<td></td>
+					<td></td>
+					<td></td>
+					<td></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td></td>
+					<td></td>
+					<td></td>
+					<td></td>
+					<td></td>
+					<td></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td></td>
+					<td></td>
+					<td></td>
+					<td></td>
+					<td></td>
+					<td></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td></td>
+					<td></td>
+					<td></td>
+					<td></td>
+					<td></td>
+					<td></td>
+				</tr>
+			</tbody>
+		</table>
+	</div>
+                        </div>
+                        <div id="scrollPos">
+                            <div class="widget">
+                                <h4 class="title"><span class="glyphicon glyphicon-th-list"></span>分   类</h4>
+                                <div class="categories">
+                                    
+                                    <a href="/categories.html#javascript">javascript(3)</a>
+                                    
+                                </div>
+                            </div>
+                            <div class="widget">
+                                <h4 class="title"><span class="glyphicon glyphicon-link"></span>常 用 链 接</h4>
+                                <div class="usefulLinks">
+                                    <a href="http://www.github.com">Github</a>
+                                    <a href="http://www.stackoverflow.com/">Stack Overflow</a>
+                                    <a href="www.google.com">Google</a>
+                                    <a href="http://segmentfault.com/">SegmentFault</a>
+                                    <a href="https://developer.mozilla.org/zh-CN/">MDN</a>
+                                    <a href="http://www.bootcss.com/">Bootstrap</a>
+                                    <a href="http://www.zhihu.com/">知乎</a>
+                                    <a href="http://www.cnblogs.com/">博客园</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div class="comments">
+        <!-- UY BEGIN -->
+        <div id="uyan_frame"></div>
+        <script type="text/javascript" src="http://v2.uyan.cc/code/uyan.js"></script>
+        <!-- UY END -->
+    </div>
+        <footer>
+    				<p>Copyright © blackLearning, hosted on GitHubPages, powered by Jekyll,design By bootstrap and Jquery</p>
+    </footer>
+
+    <div id="backTop">
+        <span class="btn btn-danger glyphicon glyphicon-chevron-up"></span>
+    </div>
+    <!-- jQuery Version 1.11.3 -->
+    <script src="/js/jquery-1.11.3.min.js"> </script>
+    <!-- Bootstrap Core JavaScript -->
+    <script src="/js/bootstrap.min.js"></script>
+    <script src="/js/calendar.js"></script>
+    <script src="/js/backTop.js"></script>
+    <script src="/js/main.js"></script>
+</body>
+
+</html>

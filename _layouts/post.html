@@ -1,0 +1,27 @@
+---
+layout: default
+---
+<!-- post.html -->
+                    <article class="post-details">
+                        <div class="post-head">
+                            <h2 class="post-title">{{ page.title }}</h3>
+                            <p class="post-date"><span class="glyphicon glyphicon-time"></span>{{ page.date | date_to_string }}</p>
+                        </div>
+                        {{content}}
+                        <div class="post-tags">
+                            <span class="glyphicon glyphicon-tags"></span>
+                            {% for tag in page.tags %} 
+                            <span class="post-tag">{{ tag }}</span>   
+                            {% endfor %}  
+                        </div>
+                    </article>
+
+                    <div class="page-container">
+                        {%if page.next%}
+                        <a href="{{page.next.url}}" class="btn btn-primary"><span class="glyphicon glyphicon-chevron-left">{{page.next.title}}</a>
+                        {%endif%}
+                        {%if page.previous%}
+                        <a href="{{page.previous.url}}" class="btn btn-primary">{{page.previous.title}}<span class="glyphicon glyphicon-chevron-right"></span></a>
+                        {%endif%}
+                    </div>
+                   
