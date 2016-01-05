@@ -295,3 +295,8 @@ tbody td:hover{
 	right: 30px;
 	bottom: 30px;
 }
+/*多说评论*/
+.ds-thread{
+	background: #fff;
+	margin-bottom: 20px;
+}
