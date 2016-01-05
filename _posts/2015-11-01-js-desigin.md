@@ -4,7 +4,6 @@ title:  "JavaScript设计模式学习笔记"
 date:   2015-11-01 14:29:29 +0800
 category: "javascript"
 tags: [javascript,设计模式]
-src: "img/3.jpg"
 ---
 
 ### JavaScript模式学习笔记
