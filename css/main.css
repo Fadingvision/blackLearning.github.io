@@ -144,10 +144,10 @@ header{
 	color: #fff;
 	text-decoration: none;
 }
+footer{
+	margin-bottom: -20px;
+}
 footer p{
-	/*position: absolute;
-	bottom: 0;
-	left: 0;*/
 	background: #111;
 	font-size: 14px;
 	text-align: center;
