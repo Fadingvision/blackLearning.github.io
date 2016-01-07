@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "underscore源码学习笔记(四)"
-date:   2015-01-07 22:29:29 +0800
+date:   2016-01-07 22:29:29 +0800
 category: "underscore"
 tags: [javascript,underscore]
 ---
