@@ -22,6 +22,7 @@ tags: [javascript,设计模式]
 -	良好的编码规范和命名规则
 -	通过良好的注释提供参考和维护代码
 注释eg: 
+
 ```js
 /**
  * [function description]  函数功能描述
@@ -39,6 +40,7 @@ tags: [javascript,设计模式]
 - 创建对象和数组时使用字面量语法。
 - 安全的数组检测：
 ```js
+
 /**
  * 安全的数组检测
  * @param  {unknown}  value 待检测数据
@@ -54,6 +56,7 @@ function isArray(value) {
 ```
 ####三、函数
 1. **即时函数**
+
 ```js
 (function(){
 	// dosomething
@@ -76,6 +79,7 @@ function(){
 
 即时函数能保证全局空间不会被临时变量所污染。
 2. **即时对象初始化**
+
 ```js
 ({
 	//配置常数
@@ -93,6 +97,7 @@ function(){
 ```
 3. **初始化时分支**
 eg: 优化事件绑定
+
 ```js
 // 这样只会在初始化EventUtil时执行条件语句，在绑定事件时不用每次都执行条件查询
 var EventUtil = {
@@ -110,6 +115,7 @@ if(typeof window.addEventListener === 'function') {
 ```
 4. **配置对象**
 >当函数的参数过多时，为了提供更整洁的API接口，可以安全忽略可选参数，更加易于阅读和维护，易于添加和删除参数，即可以使用参数对象。
+
 ```js
 	addPerson(obj){
 		// do something...
@@ -123,6 +129,7 @@ if(typeof window.addEventListener === 'function') {
 ```
 5. **函数柯里化**
 >当发现调用同一个函数，且传递的参数绝大多数是相同的时候，就可以对该函数使用柯里化。
+
 ```javascript
 function schonfinkelize(fn) {
 	var slice = Array.prototype.slice,
@@ -142,6 +149,7 @@ function add(a, b, c, d, e) {
 ####四、对象创建模式
 1.  **命名空间模式**
 创建一个全局对象，然后使所有函数和变量成为该全局对象的属性和方法。
+
 ```js
 var MYOBJ = MYOBJ || {}; // 全局变量全部用大写形式命名
 // 避免重复命名的命名函数
@@ -166,6 +174,7 @@ MYOBJ.namespace = function (nameString) {
 
  **依赖关系**
 在函数或者模块顶部显式地声明依赖的模块。
+
 ```js
 	var function myFunction() {
 		//声明依赖
@@ -175,6 +184,7 @@ MYOBJ.namespace = function (nameString) {
 	}
 ```
 2. 私有属性和方法 
+
 ```js
 	 //   将私有方法揭示为公有方法
 	var myarray;  
@@ -193,6 +203,7 @@ MYOBJ.namespace = function (nameString) {
 ```
 3. **模块模式**
 结合命名空间使用：
+
 ```js
 	var MYOBJ = MYOBJ || {};
 	MYOBJ.namespace('MYOBJ.util.array');
@@ -212,6 +223,7 @@ MYOBJ.namespace = function (nameString) {
 #### 五、代码复用模式
 1. **类式继承模式**
 - 默认继承模式：
+
 ```js
 	function inherit(Child, Parent) {
 		Child.prototype = new Parent();
@@ -224,6 +236,7 @@ MYOBJ.namespace = function (nameString) {
 >组合继承模式缺点是父构造函数被调用了两次，效率低下，且自身的属性会通过构造函数和原型继承两次。
 
 - 共享原型模式
+
 ```js
 	function inherit(Child, Parent) {
 		Child.prototype = Parent.prototype;
@@ -231,6 +244,7 @@ MYOBJ.namespace = function (nameString) {
 ``` 
 与默认方法相比，这样做的优点是效率比较高（不用执行和建立Parent的实例了），比较省内存。缺点是 Parent.prototype和Child.prototype现在指向了同一个对象，那么任何对Child.prototype的修改，都会反映到Parent.prototype。
 - 临时构造函数
+
 ```js
 	function inherit(Child, Parent) {
 		var F = function () {}; // 临时构造函数
@@ -241,6 +255,7 @@ MYOBJ.namespace = function (nameString) {
 	}
 ``` 
 2.**原型继承**（无类继承模式）
+
 ```js
 	function object(parent){
 		function F() {};
@@ -255,6 +270,7 @@ MYOBJ.namespace = function (nameString) {
 >这种继承方式会共享相应的值，就像默认模式一样，对子类型的修改都会反应到父类型上。
 
 3. **寄生继承**
+
 ```js
 	function createAnother(parent){
 		var child = object(parent);
@@ -265,6 +281,7 @@ MYOBJ.namespace = function (nameString) {
 
 4. **寄生组合式继承**(引用类型最理想的继承范式!)
 >在组合式继承的基础上优化，利用寄生继承继承父类的原型，使得继承时只调用一次父类构造函数。
+
 ```js
 	function inheritPrototype(child, parent){
 		// ES5有原生object.create方法代替object方法
@@ -278,6 +295,7 @@ MYOBJ.namespace = function (nameString) {
 ####六、设计模式
 1. 单体模式
 单体模式的定义是产生一个类的唯一实例.
+
 ```js
 var singleton = function( fn ){
     var result;
@@ -290,6 +308,7 @@ var createMask = singleton( function(){
 });
 ```
 2. 模块模式
+
 ```js
 	var myNamespace = (function () {
   var myPrivateVar, myPrivateMethod;
