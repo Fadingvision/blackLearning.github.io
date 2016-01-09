@@ -50,6 +50,7 @@ return results;
 ```
 还有两个特别的地方：
   - 将集合分成了类数组集合和对象集合。使用了isArrayLike函数：
+  
 ```js 
 // js的最大精确整数
 var MAX_ARRAY_INDEX = Math.pow(2, 53) - 1;

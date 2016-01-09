@@ -5,9 +5,15 @@ body{
 .content-container li{
 	font-size: 14px;
 }
-.content-container blockquote{
+.content-container blockquote,
+.content-container pre,
+.content-container p{
 	font-size: 14px;
 }
+.content-container pre{
+	color: #337ab7;
+}
+
 .skin-container {
 	background-color: rgb(51,51,51);
 	background-image: url(../img/6.jpg);
