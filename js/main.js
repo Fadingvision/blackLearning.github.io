@@ -23,4 +23,12 @@ $(function(){
 		mode: 'move', // move为运动返回顶部，go为直接返回顶部
 		position: document.documentElement.clientHeight || document.body.clientHeight // 出现返回顶部按钮的位置
 	});
+
+	var $imgs = $('.post-pic img');
+
+	for (var i = 0, len = $imgs.length; i < len; i++) {
+		if($imgs.eq(i).attr('src') === ''){
+			$imgs.eq(i).remove();
+		}
+	}
 });
