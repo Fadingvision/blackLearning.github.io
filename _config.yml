@@ -12,7 +12,6 @@ description: 前端学习的那些事儿
 baseurl:  # the subpath of your site, e.g. /blog
 github_username:  blackLearning
 # Build settings
-markdown: kramdown
 encoding: utf-8
 paginate: 4
 gems: [jekyll-paginate]
