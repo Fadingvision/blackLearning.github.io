@@ -19,7 +19,6 @@ paginate_path: "page:num"
 permalink: /:categories/:title.html
 url: 
 lsi: false
-rouge：true
 safe: false
 config:
   js_dir:
