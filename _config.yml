@@ -8,13 +8,13 @@ markdown: redcarpet
 # Themes are encouraged to use these universal variables 
 # so be sure to set them if your theme uses them.
 #
-title : Feenan's blog
+title : blackLearning's blog
 tagline: 
 author :
-  name : Feenan
-  email : xuwenmin12580@gmail.com
-  github : xuwenmin
-  twitter : feenanxu
+  name : blackLearning
+  email : fuyigekua@gmail.com
+  github : blackLearning
+  twitter : blackLearning
   feedburner : feedname
 
 # The production_url is only used when full-domain names are needed
