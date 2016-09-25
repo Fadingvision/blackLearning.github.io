@@ -1,15 +1,22 @@
 ---
-layout: default
-title: "分类"
+layout: page
+title: 分类
+header: Posts By Category
+group: navigation
 ---
-<ul class="category-details">
-{% for cat in site.categories %} 
-	{% if cat[0] != 'blog' %} 
-   <a name="{{ cat[0] }}"></a>
-   <h2>{{ cat[0] }}({{ cat[1].size }})</h2> 
-     {% for post in cat[1] %} 
-    <li><h4><span>{{ post.date | date_to_string }}</span> &raquo;  <a href="{{ post.url }}">{{ post.title }}</a></h4></li>
-	{% endfor %} 
-   {% endif %} 
-{% endfor %}
+{% include JB/setup %}
+
+<ul class="tag_box inline">
+  {% assign categories_list = site.categories %}
+  {% include JB/categories_list %}
 </ul>
+
+
+{% for category in site.categories %} 
+  <h2 id="{{ category[0] }}-ref">{{ category[0] | join: "/" }}</h2>
+  <ul>
+    {% assign pages_list = category[1] %}  
+    {% include JB/pages_list %}
+  </ul>
+{% endfor %}
+
