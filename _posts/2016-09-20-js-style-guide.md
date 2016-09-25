@@ -12,10 +12,10 @@ tags: [javascript]
 通过采用一些合理的编码规范，一方面可以弥补js语言上的一些缺陷，另一方面可以降低每个组员介入项目的门槛成本，从而提高提高工作效率及协同开发的便捷性。
 
 下面是一些比较流行的js代码风格规范：
-- standard：https://github.com/feross/standard
-- google: http://google-styleguide.googlecode.com/svn/trunk/javascriptguide.xml
-- rwaldron: https://github.com/rwaldron/idiomatic.js
-- airbnb: https://github.com/airbnb/javascript
+- [standard](https://github.com/feross/standard)
+- [google](http://google-styleguide.googlecode.com/svn/trunk/javascriptguide.xml)
+- [rwaldron](https://github.com/rwaldron/idiomatic.js)
+- [airbnb](https://github.com/airbnb/javascript)
 
 ### 下面主要对google和airbnb推荐的js风格做一些简单的介绍和对比：
 
@@ -38,13 +38,13 @@ tags: [javascript]
 
 -  总是使用 var 来声明变量。
 
---
+---------------------------------------
 
 - 使用 var 声明每一个变量。
 - airbnb 推荐在作用域顶部声明变量。避免变量声明提升相关的问题。
 - 最后再声明未赋值的变量。
 
--- 
+--------------------------------------- 
 - google推荐常量的形式如: NAMES_LIKE_THIS, 即使用大写字符, 并用下划线分隔.
 
 
@@ -117,7 +117,7 @@ var items = [];
 
 - 两种风格都推荐使用单引号 '' 包裹字符串。
 
-#### **airbnb**推荐超过 100 个字符的字符串应该使用连接符写成多行。
+- **airbnb**推荐超过 100 个字符的字符串应该使用连接符写成多行。
 
 
 ### 函数
