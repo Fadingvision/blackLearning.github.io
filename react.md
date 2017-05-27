@@ -29,10 +29,7 @@ react打包的时候采用了rewrite-modules这个babel plugin,
 -----
 
 ## JSX && React Elements
-
-
-
-通常我门在写react的时候习惯用jsx语法，但jsx实际上还是被转换为react的方法。下面可以看到一个最简单的组件是如何被转换为es5的方法的，其中最主要的函数便是createElement方法。
+通常我门在写react的时候习惯用jsx语法，但jsx实际上还是createElement的语法糖。下面可以看到一个最简单的组件是如何被转换为es5的方法的，其中最主要的函数便是createElement方法。
 
 ```js
 function hello(props) {
@@ -117,7 +114,7 @@ if (config != null) {
 __Element Tree__
 
 ```javascript
-// 为了对React ELement的类型进行标识，这里采用了
+// 为了对React ELement的类型进行标识，这里用了
 Symbol.for('react.element')，　Symbol.for(string)会在Symbol对象中搜索名为string的Symbol值，如果找到该值，则返回，如果没有，则返回一个新的Symbol值。
 
 这保证了$$typeof属性值的唯一性。
