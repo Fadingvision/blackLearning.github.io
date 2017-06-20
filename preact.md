@@ -28,18 +28,7 @@ forceUpdate(callback) {
 },
 ```
 
-
-2. 管理生命周期的执行顺序
-
-
-3. 管理context, props, state.
-
-
-
-code Modules:
-
-
-## h()
+## h (关于如何创建虚拟节点)
 
 - nodeName为一个元素的属性，如果该元素是dom存在的则会被转为一个tag字符串，　或者一个构造函数（自定义元素，组件）
 - attributes为一个元素的属性（props）,如果没有props,　该值将被babel等插件转为Null , 原封不动的放入vNode中．
@@ -114,18 +103,6 @@ function h(nodeName, attributes, ...args) {
 
 
 
-## Render (Diff)
-
-这里render() 接受第三个参数，这是会被替换的根节点，否则，如果没有这个参数，Preact 默认追加。
-
-```js
-<!-- render -->
-export function render(vnode, parent, merge) {
-	return diff(merge, vnode, {}, false, parent, false);
-}
-<!-- diff -->
-export function diff(dom, vnode, context, mountAll, parent, componentRoot) {}
-```
 
 
 ## Component
@@ -491,3 +468,389 @@ export function renderComponent(component, opts, mountAll, isChild) {
 负责执行组件的卸载逻辑．执行__unmountComponent__生命周期方法．
 
 
+## Render (Diff)
+
+
+Render函数作为整个库的入口,这里将通过一个大的vnode对象来构建整个真实的dom树, 并管理相应的组件,
+是viewModel的入口.
+
+这里render() 接受第三个参数，这是会被替换的根节点，否则，如果没有这个参数，Preact 默认追加。
+
+```js
+<!-- render -->
+export function render(vnode, parent, merge) {
+	return diff(merge, vnode, {}, false, parent, false);
+}
+<!-- diff -->
+export function diff(dom, vnode, context, mountAll, parent, componentRoot) {}
+```
+
+如果元素之间进行完全的一个比较，即新旧Element对象的父元素，本身，子元素之间进行一个混杂的比较，其实现的时间复杂度为O(n^3)。
+
+所以这里做一个同级元素之间的一个比较，则其时间复杂度则为O(n)。
+
+
+```js
+export function diff(dom, vnode, context, mountAll, parent, componentRoot) {
+	// 因为diff是一个递归的算法,在进行vdom树的比较时,
+	// 会反复的调用diff函数.
+	// diffLevel用来作为全局diff是否完成的标识,
+	if (!diffLevel++) {
+		// 当第一次进入diff函数的时候,判断是否在进行svg元素的diff
+		isSvgMode = parent!=null && parent.ownerSVGElement!==undefined;
+
+		// 标识老的dom元素没有props缓存,
+		hydrating = dom!=null && !(ATTR_KEY in dom);
+	}
+
+	// 将老的dom元素与新的vnode节点树进行递归的diff运算,得到新的dom节点
+	let ret = idiff(dom, vnode, context, mountAll, componentRoot);
+
+	// 将新的dom节点插入文档
+	if (parent && ret.parentNode!==parent) {
+		parent.appendChild(ret);
+	}
+
+	// diffLevel being reduced to 0 means we're exiting the diff
+	if (!--diffLevel) {
+		hydrating = false;
+		// 完成diff运算后,触发组件的componentDidMounted生命周期
+		if (!componentRoot) flushMounts();
+	}
+
+	return ret;
+}
+```
+
+
+diff算法的内部实现,值得注意的是这里的dom和vnode
+永远是属于同一级的比较,这大大的降低了diff算法的复杂度.
+
+
+diff算法的详细实现:
+
+```js
+function idiff(dom, vnode, context, mountAll, componentRoot) {
+	let out = dom,
+		prevSvgMode = isSvgMode;
+
+
+	/*
+		在这里，我们做同级元素比较时，可能会出现四种情况
+		- 整个元素都不一样，即元素被replace掉
+		- 元素的attrs不一样
+		- 元素的text文本不一样
+		- 元素顺序被替换，即元素需要reorder
+	*/
+
+
+	// 将null或者undefined或者boolean值元素统统当作空字符串渲染
+	if (vnode==null || typeof vnode==='boolean') vnode = '';
+
+	// - 元素的text文本不一样,或者整个元素都不一样 =>
+
+	// 在前面的h函数中,如果jsx中的文本的子节点是文本节点,
+	// 那么vnode的子节点就会被渲染成字符串或者数字
+	// 所以如果vnode为字符串或者数字,表明该节点是一个文本节点.
+	if (typeof vnode==='string' || typeof vnode==='number') {
+		// 表明老的节点是文本节点,
+		// 则直接进行nodeValue赋值,更新该文本节点
+		if (dom && dom.splitText!==undefined && dom.parentNode && (!dom._component || componentRoot)) {
+			if (dom.nodeValue!=vnode) {
+				dom.nodeValue = vnode;
+			}
+		}
+		else {
+			// 如果老的节点不是文本节点,
+			// 则需要新创建一个文本节点,将老的节点进行替换.
+			out = document.createTextNode(vnode);
+			if (dom) {
+				if (dom.parentNode) dom.parentNode.replaceChild(out, dom);
+				// 回收老的节点.
+				recollectNodeTree(dom, true);
+			}
+		}
+
+		// 更因为文本节点不能有attributes属性值
+		// 这里直接更新到内部的props属性为true,
+		out[ATTR_KEY] = true;
+
+		return out;
+	}
+
+
+	// 如果不是上诉的值,则vnode是一个对象,
+	// 则分为两种情况:
+	// 1. vnode是一个自定义的组件,这时nodeName为该组件的构造函数
+	// 2. vnode为普通的原生dom组件, 这是nodeName为字符串(组件的标签名)
+	// 具体的实现可以参考hyperScript函数.
+
+
+	// 当vnode为一个自定义组件的时候,
+	// 意味着它拥有一系列的声明周期,
+	// 此时需要从Vnode中构造Component, 并执行相应的生命周期方法.
+	// 最后返回从组件的render函数中的jsx中得到的真实dom节点.
+	let vnodeName = vnode.nodeName;
+	if (typeof vnodeName==='function') {
+		return buildComponentFromVNode(dom, vnode, context, mountAll);
+	}
+
+
+	// 根据vnodename来判断是否是svg模式
+	isSvgMode = vnodeName==='svg' ? true : vnodeName==='foreignObject' ? false : isSvgMode;
+
+
+	//  =>
+	//  下面是vnode节点为普通的dom标签的情况:
+	
+	// 整个元素都不一样，即元素被replace掉 => 
+	/*
+		判断老的dom节点标签名字和新的vnode节点名是否一致,
+		如果不一致或者老的dom不存在,
+		则简单粗暴的直接重新创建一个新的dom节点.
+		不再进行任何同节点的比较
+	 */
+	vnodeName = String(vnodeName);
+	if (!dom || !isNamedNode(dom, vnodeName)) {
+		out = createNode(vnodeName, isSvgMode);
+
+		// 如果dom节点存在,说明节点名不一致,
+		// 将老的节点的字节点复制到新的节点下
+		if (dom) {
+			while (dom.firstChild) {
+				out.appendChild(dom.firstChild);
+			}
+
+			// 用新的节点替换掉老的节点.
+			if (dom.parentNode) dom.parentNode.replaceChild(out, dom);
+
+			// 回收老的节点
+			recollectNodeTree(dom, true);
+		}
+	}
+
+	let fc = out.firstChild,
+		props = out[ATTR_KEY],
+		vchildren = vnode.children;
+
+	// 如果是新创建的节点(没有ATTR_KEY标识)
+	// 将节点的props复制到ATTR_KEY属性中．
+	if (props==null) {
+		props = out[ATTR_KEY] = {};
+		for (let a=out.attributes, i=a.length; i--; ) props[a[i].name] = a[i].value;
+	}
+
+	// 简单针对纯文本变化的小优化(实际中也是非常多的一种情况):
+	// 如果子节点只有一个文本节点,并且老的dom节点也是文本节点,
+	// 此时说明只有文字的变化, 简单的重新复制nodeValue即可.
+	if (!hydrating && vchildren && vchildren.length===1 && typeof vchildren[0]==='string' && fc!=null && fc.splitText!==undefined && fc.nextSibling==null) {
+		if (fc.nodeValue!=vchildren[0]) {
+			fc.nodeValue = vchildren[0];
+		}
+	}
+
+	// 否则如果存在多个子元素,
+	// 将子元素进行递归的比较(最终会进行idiff比较)
+	// 直到没有vnode没有子节点为止
+	else if (vchildren && vchildren.length || fc!=null) {
+		innerDiffNode(out, vchildren, context, mountAll, hydrating || props.dangerouslySetInnerHTML!=null);
+	}
+
+
+	// 自身元素的attrs不一样 => 
+	// 将vnode中的attributes或者事件应用到新的dom元素上.
+	diffAttributes(out, vnode.attributes, props);
+
+	// restore previous SVG mode: (in case we're exiting an SVG namespace)
+	isSvgMode = prevSvgMode;
+
+	return out;
+}
+```
+
+> 如何对子元素进行比较,key值的比较 :
+
+```js
+
+/** 对一个元素的子元素进行比较,
+主要是由于key的存在,所以要做一些特殊处理,
+不然完全直接递归idiff即可
+ */
+function innerDiffNode(dom, vchildren, context, mountAll, isHydrating) {
+	let originalChildren = dom.childNodes,
+		children = [],
+		keyed = {},
+		keyedLen = 0,
+		min = 0,
+		len = originalChildren.length,
+		childrenLen = 0,
+		vlen = vchildren ? vchildren.length : 0,
+		j, c, f, vchild, child;
+
+	// 如果老的dom节点存在子节点,
+	// 则遍历子节点,
+	// 将其中带有key值的节点存入keyd对象中,
+	// 否则按顺序存入children数组中.
+	if (len!==0) {
+		for (let i=0; i<len; i++) {
+			let child = originalChildren[i],
+				props = child[ATTR_KEY],
+				key = vlen && props ? (child._component ? child._component.__key : props.key) : null;
+			if (key!=null) {
+				keyedLen++;
+				keyed[key] = child;
+			}
+			else if (props || (child.splitText!==undefined ? (isHydrating ? child.nodeValue.trim() : true) : isHydrating)) {
+				children[childrenLen++] = child;
+			}
+		}
+	}
+
+	// 如果新的vnode中存在子节点
+	if (vlen!==0) {
+
+		// 遍历字节点, 在keyed对象中相同key的节点,
+		// 或者循环childrenLen,找到原节点中类型相同或者构造函数相同的节点,
+		// 从而最大程度的复用原节点.
+		for (let i=0; i<vlen; i++) {
+			vchild = vchildren[i];
+			child = null;
+			// attempt to find a node based on key matching
+			let key = vchild.key;
+			if (key!=null) {
+				if (keyedLen && keyed[key]!==undefined) {
+					child = keyed[key];
+					keyed[key] = undefined;
+					keyedLen--;
+				}
+			}
+			// attempt to pluck a node of the same type from the existing children
+			else if (!child && min<childrenLen) {
+				for (j=min; j<childrenLen; j++) {
+					if (children[j]!==undefined && isSameNodeType(c = children[j], vchild, isHydrating)) {
+						child = c;
+						children[j] = undefined;
+						if (j===childrenLen-1) childrenLen--;
+						if (j===min) min++;
+						break;
+					}
+				}
+			}
+
+			// 将找到的原节点其赋值给child变量然后交给idiff做比较,
+			// 生成diff之后新的child节点.
+			child = idiff(child, vchild, context, mountAll);
+
+
+			f = originalChildren[i];
+			if (child && child!==dom && child!==f) {
+				console.log(originalChildren)
+
+				// 如果原节点为空，或者是原节点被丢弃,
+				// 直接生成的新的节点,没有子节点
+				// 那么直接插入新的child节点
+				if (f==null) {
+					console.log(f, child)
+					dom.appendChild(child);
+				}
+				//
+				else if (child===f.nextSibling) {
+					console.log(f, child)
+					removeNode(f);
+				}
+				// 将新的child节点插入原节点的前面.
+				else {
+					console.log(f, child)
+					dom.insertBefore(child, f);
+				}
+			}
+		}
+	}
+
+
+	// 将没在vnode中对应的元素(也就是被丢弃的节点)从dom文档中移除并回收.
+	if (keyedLen) {
+		for (let i in keyed) if (keyed[i]!==undefined) recollectNodeTree(keyed[i], false);
+	}
+
+	while (min<=childrenLen) {
+		if ((child = children[childrenLen--])!==undefined) {
+			recollectNodeTree(child, false);
+		}
+	}
+}
+```
+
+### 节点属性的diff : 
+
+```js
+function diffAttributes(dom, attrs, old) {
+	let name;
+
+	// 将新元素中不存在的, 但是老的dom元素中存在的全部置空
+	for (name in old) {
+		if (!(attrs && attrs[name]!=null) && old[name]!=null) {
+			setAccessor(dom, name, old[name], old[name] = undefined, isSvgMode);
+		}
+	}
+
+	// 新增和更新属性.
+	for (name in attrs) {
+		if (name!=='children' && name!=='innerHTML' && (!(name in old) || attrs[name]!==(name==='value' || name==='checked' ? dom[name] : old[name]))) {
+			setAccessor(dom, name, old[name], old[name] = attrs[name], isSvgMode);
+		}
+	}
+}
+
+###　节点属性props设置：
+
+#### ref属性: 销毁老的dom对象，将新的dom对象传入ref函数
+
+```js
+if (name==='ref') {
+	if (old) old(null);
+	if (value) value(node);
+}
+```
+
+#### style样式：
+如果是字符串，通过cssText的方式来设置：
+
+如果是对象，则遍历对象，依次设置：
+
+```js
+node.style.cssText = value || '';
+
+// 为必要的单位样式，添加px
+for (let i in value) {
+	node.style[i] = typeof value[i]==='number' && IS_NON_DIMENSIONAL.test(i)===false ? (value[i]+'px') : value[i];
+}
+```
+#### 事件
+
+规定所有的事件需要以`on + 事件名`开头：
+
+这里需要将所有的事件进行代理，并且绑定到dom对象的_listener中对象的eventName属性中，方便事件解除绑定的时候能够找到对应的事件监听器．
+
+```js
+if (name[0]=='o' && name[1]=='n') {
+	let useCapture = name !== (name=name.replace(/Capture$/, ''));
+	name = name.toLowerCase().substring(2);
+	if (value) {
+		if (!old) node.addEventListener(name, eventProxy, useCapture);
+	}
+	else {
+		node.removeEventListener(name, eventProxy, useCapture);
+	}
+	(node._listeners || (node._listeners = {}))[name] = value;
+}
+```
+
+#### 自定义属性
+
+`node[name] = value;`
+
+
+#### 自有属性
+
+`node.setAttribute(name, value);`
