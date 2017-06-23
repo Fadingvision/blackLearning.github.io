@@ -423,7 +423,7 @@ export default class Loan extends React.Component {
 ```
 
 
-#### 测试代码：
+测试代码：
 
 ```js
 import React from 'react';
@@ -498,7 +498,8 @@ describe('LoanComponent test container', () => {
 ```
 
 
-可以看到就测试这个组件而言，我们应该关心的是：
+可以看到，当测试一个组件的时候，我们应该关心什么，
+就这个组件而言，我们应该关心的是：
 
 1.　根据各种条件是否正确渲染了相应的组件。
 2. 当有数据的时候，是否渲染了对应的列表。
@@ -507,14 +508,3 @@ describe('LoanComponent test container', () => {
 这里我们并没有去测试相应的用户交互的逻辑，
 这是因为这是属于子组件的工作，应该把这部分的测试逻辑放在子组件中去做，
 react组件的测试，你应该仅仅测试你组件自身所关心的内容。
-
-
->参考：
-
-https://facebook.github.io/jest/docs/en/troubleshooting.html#content
-
-https://reacttraining.com/react-router/web/guides/testing
-
-https://medium.freecodecamp.com/the-right-way-to-test-react-components-548a4736ab22
-
-http://airbnb.io/enzyme/docs/api/ReactWrapper/setContext.html
