@@ -54,7 +54,7 @@ expect(wrapper.props().data).toBe('something');
 
 ```
 
-2.　围绕组件的props，state编写测试．
+2.　围绕组件的props，state编写测试, 确保能渲染不同的props和state。
 
 3.　用户的交互行为．模拟事件进行用户行为测试，点击，输入等．
 
