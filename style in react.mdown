@@ -1,0 +1,6 @@
+## style Components
+
+1. 组件样式的模块化
+2. 去掉css和html的耦合。
+3. 更强的js控制
+4. react-native兼容
