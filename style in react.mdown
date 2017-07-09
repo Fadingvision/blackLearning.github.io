@@ -1,0 +1,68 @@
+## CSS In React
+
+### react css modules
+
+css模块化
+
+```js
+import React from 'react';
+import CSSModules from 'react-css-modules';
+import styles from './table.css';
+
+class Table extends React.Component {
+    render () {
+        return <div styleName='table'>
+            <div styleName='row'>
+                <div styleName='cell'>A0</div>
+                <div styleName='cell'>B0</div>
+            </div>
+        </div>;
+    }
+}
+
+export default CSSModules(Table, styles);
+```
+
+
+## style Components
+
+1. 组件样式的模块化
+2. 去掉css和html的耦合。
+3. 更强的js控制
+4. react-native兼容
+
+<img alt="Syntax highlighted styled component" src="http://imgur.com/k7h45c3.jpg" height="150px" />
+
+
+```js
+
+import styled from 'styled-components';
+
+const BtnContainer = styled.div`
+	margin-top: 0.666667rem;
+	padding-bottom: 0.613333rem;
+	padding-left: 1.0rem;
+	padding-right: 1.0rem;
+	text-align: center;
+`
+
+const Btn = styled.button`
+	color: #ffffff;
+	display: inline-block;
+	border-radius: 3px;
+	border: none;
+	transition: background-color .3s ease-in-out;
+	padding: 0.293333rem 2.4rem;
+	background: #ef5f50;
+`
+
+
+function StepFooter({ name, submit }) {
+	return (
+		<BtnContainer>
+			<Btn onClick={submit}>{name}</Btn>
+		</BtnContainer>
+	);
+}
+
+```

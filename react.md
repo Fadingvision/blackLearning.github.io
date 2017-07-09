@@ -141,45 +141,6 @@ var element = {
 
 将这些参数递归的组合完毕之后，一个基本的element 对象tree就存在了，剩下的就交给reactDOM去渲染了。
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 __createFactory()__
 
 ### Transforming Elements
@@ -194,6 +155,44 @@ __React.children__
 ------
 
 ## 组件系统
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 __React.Component__
 __React.PureComponent__
