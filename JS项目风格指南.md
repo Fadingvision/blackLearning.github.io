@@ -25,13 +25,13 @@
 
 
 * 在开发分支中进行开发
-    
+
     _为什么:_
     > 因为这种方法让你所有的工作都是在一个专门的分支上独立完成的，而不是在主分支上。它让你在提交多个合并请求的时候不会造成混淆，它可以让你安全的进行迭代开发，而不会用一些潜在的不稳定的，未完成的代码去污染主分支。[阅读更多...](https://www.atlassian.com/git/tutorials/comparing-workflows#feature-branch-workflow)
 
 
 * 分支分离于develop分支
-        
+
     _为什么:_
     > 通过这种方式，你能保证master分支尽可能的在没有任何问题的情况下构建，而且能够直接用来发布。（这可能对一些项目来说有点过度了）
 
@@ -57,14 +57,14 @@
 
 
 * 在提交一个合并请求之前，确保你的开发分支成功的构建，并且通过所有的测试（包括代码的风格检查）。
-    
+
     _为什么:_
     > 你即将把你的代码合并到一个稳定的分支上，如果你的开发分支测试失败了，那么你的目标分支有相当高的几率也会构建失败。在提交合并请求前检查代码风格，有助于提高代码的可读性和在真实代码结合的时候减少格式化错误。
 
 * 使用.gitignore文件。
 
 
-``` 
+```
 
 ### Node ###
 
@@ -150,12 +150,12 @@ $RECYCLE.BIN/
 .com.apple.timemachine.donotpresent
 
 ```
-    
+
     _为什么:_
     > 上面的文件列表将不会被同步到你的远程仓库中，它包含了大多数常用的编辑器中的临时文件，和一些基本js项目的依赖文件夹。
 
 * 保护你的 `develop` 和 `master` 分支 .
-  
+
     _why:_
     > 它让你的生产分支不会收到意外的或者不可逆的改变的干扰. 关于更多... [Github](https://help.github.com/articles/about-protected-branches/) and [Bitbucket](https://confluence.atlassian.com/bitbucketserver/using-branch-permissions-776639807.html)
 
@@ -259,14 +259,61 @@ $RECYCLE.BIN/
     _why:_
     > 不同的环境可能需要不同的数据，token，接口，端口号等。
 
-* 
+* 从环境变量中加载你的部署的特殊配置，不要将作为常量放入代码库中。
+
+    _why:_
+    > 你也许有tokens, 密码和其他重要的信息放在其中，你的配置信息应该从应用实现中分离出来，这样app的内部代码可以随时开源。[参考这个例子](https://github.com/wearehive/project-guidelines/blob/master/config.sample.js)
+
+    _how:_
+    > 使用`.env`文件去存储你的变量，然后将其放入`.gitigore`中忽略掉，将一个example作为替代进行提交，可以当做参考。生产环境中你应该仍然用标准的方法设置环境变量。[更多](https://medium.com/@rafaelvidaurre/managing-environment-variables-in-node-js-2cb45a55195f)
 
 
+* 被推荐的方式是在应用启动之前先进行环境变量的验证，[参考这个例子](https://github.com/wearehive/project-guidelines/blob/master/configWithTest.sample.js)中使用`joi`来验证提供的变量。
+
+### 3.1 保持一致的开发环境。
+
+* 在`package.json`文件的`engines`字段中设置你的Node版本，
+    _why:_
+    > 这让其他人能够知道该项目使用的具体node版本。[关于更多engines](https://docs.npmjs.com/files/package.json#engines)可以参考npm的文档。
+
+* 此外，使用`nvm`以及在项目根目录下创建`.nvmrc`文件，不要忘记在文档中声明。
+
+    _why:_
+    > 任何使用nvm的人都可以使用`nvm use`操作来自由的切换node版本。[更多nvm的信息](https://github.com/creationix/nvm)
+
+* 你还可以使用`preinstall`的一个npm 脚本来检查node和npm的版本。
+
+    _why:_
+    > 一些依赖可能会由于太新的node版本而导致安装失败。
+
+* 使用 `Docker images`来使事情变得不那么复杂。[更多](https://hackernoon.com/how-to-dockerize-a-node-js-application-4fbab45a0c19)
+
+* 本地安装包而不是全局安装。
 
 
+## 4. 依赖 <a name="依赖"></a>
 
+在使用一个包之前，先看看它的github主页，看下打开的`issues`的数量，每日的下载量和贡献者的数量，以及这个包最近一次更新的日期。
 
+* 如果你需要引入一些不太知名的库，在使用之前最好在团队中进行讨论。
 
+* 记录了解你当前正在使用的包。例如，`npm ls --depth=0` 可以看到当前项目所有的顶级依赖包。 [关于更多](https://docs.npmjs.com/cli/ls)
 
+* 注意你的所有包中是否有未使用的和与项目不想关的。[关于更多](https://www.npmjs.com/package/depcheck)
 
+* 注意包的下载统计来确定是否这个包正在被社区重度使用过. `npm-stat`[关于更多...](https://npm-stat.com/)
+
+    _why:_
+    > 更多的使用者意味着更多的贡献者，也通常意味着这个包的维护性更好，结果意味着这个包的Bug会被更快的发现和修复。
+
+* 检查这个依赖是否有一个好的，成熟的频繁的版本发布，`npm view async`. [关于更多...](https://docs.npmjs.com/cli/view)
+
+* 始终确保你的应用在最新的依赖版本下正常工作。`npm outdated`可以用来检查是否依赖有新的版本发布[关于更多...](https://docs.npmjs.com/cli/outdated)
+
+    _why:_
+    > 包的更新有时候会包含一些不能向下兼容的改变，因此你应该尽可能快的了解这些更新内容个，始终去检查它们的发布日志，一个接一个的更新你的依赖，这将使得问题检查更加容易（如果真的有不向下兼容的更新发生），使用一些屌屌的工具来帮助你完成这些事情。例如[npm-check-updates](https://github.com/tjunnone/npm-check-updates).
+
+* 检查安装的包是否有已知的安全漏洞,例如[Snyk](https://snyk.io/test?utm_source=risingstack_blog).
+
+### 4.1 保持一直不变的依赖(`dependencies`)
 
