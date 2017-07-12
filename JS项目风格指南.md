@@ -318,7 +318,7 @@ $RECYCLE.BIN/
 ### 4.1 保持一致的依赖(`dependencies`)
 
 * 确保你的团队成员得到和你保持一致的依赖
-    
+
     怎么做：
     > 使用`npm@5`或者更高版本的`package-lock.json`
 
@@ -432,7 +432,7 @@ $RECYCLE.BIN/
 
     > 我们更偏好`eslint`，你不必跟我们一样。它有更多数量的规则支持，能够配置这些规则和添加定制的规则。
 
-* 我们使用  [Airbnb JavaScript Style Guide](https://github.com/airbnb/javascript) 来检查Js代码，[Read more](https://www.gitbook.com/book/duk/airbnb-javascript-guidelines/details). 
+* 我们使用  [Airbnb JavaScript Style Guide](https://github.com/airbnb/javascript) 来检查Js代码，[Read more](https://www.gitbook.com/book/duk/airbnb-javascript-guidelines/details).
 
 * 当使用[flowType](https://flow.org/)做静态类型检查的时候，我们使用[eslint的插件来检查flow的语法](https://github.com/gajus/eslint-plugin-flowtype)
 
@@ -483,7 +483,7 @@ $RECYCLE.BIN/
 
 * 我们大多数时候都遵循面向资源的设计原则，它有三个因素：
 资源，集合，和URLs。
-    
+
     * 一个资源拥有数据，关系和其他资源，以及操作它们的方法。
     * 一组资源就叫做一个集合
     *  URL用来识别一个资源的线上位置
@@ -501,8 +501,127 @@ $RECYCLE.BIN/
 
 * 对非资源的API使用动词， 在这种情况下，你的API不会返回任何资源，而是执行一个操作并返回操作的结果信息给客户端，你应该使用动词代替名词来清楚的区分两种响应（非资源响应和资源相关的响应）
 
-#### 9.1.2 命名表域
+<a name="操作资源"></a>
+### 9.2 操作资源
 
-* 请求体或者响应类型是json格式，遵守驼峰命名法来保持一致性。
+#### 9.2.1 使用HTTP方法
+
+在你的资源url中仅仅使用名词，避免`/addNewUser` or `/updateUser`这样的url, 用http方法来解释功能。
+
+*　__GET__   用来检索资源
+* __POST__　 用来创建一个新的资源或者子资源
+* __PUT__    用来更新已经存在的资源
+* __PATCH__  用来更新已经存在的资源，PATCH只会更新应用的区域
+* __DELETE__    用来删除已经存在的资源
+
+### 9.3 子资源
+
+* **GET**       `/schools/2/students    `   Should get the list of all students from school 2
+* **GET**       `/schools/2/students/31`    Should get the details of student 31, which belongs to school 2
+* **DELETE**    `/schools/2/students/31`    Should delete student 31, which belongs to school 2
+* **PUT**       `/schools/2/students/31`    Should update info of student 31, Use PUT on resource-URL only, not collection
+* **POST**  `/schools `                     Should create a new school and return the details of the new school created. Use POST on collection-URLs
 
 
+### 9.4 API版本控制
+
+### 9.5 API反馈
+
+#### 9.5.1 错误
+
+响应信息必须具有自我描述性，一个号的错误信息响应应该看来像这样：
+
+```json
+{
+"code": 1234,
+"message" : "Something bad happened",
+"description" : "More details"
+}
+```
+
+或者是表单验证的错误：
+
+```json
+{
+  "code" : 2314,
+  "message" : "Validation Failed",
+  "errors" : [
+    {
+      "code" : 1233,
+      "field" : "email",
+      "message" : "Invalid email"
+    },
+    {
+       "code" : 1234,
+       "field" : "password",
+       "message" : "No password provided"
+    }
+  ]
+}
+```
+
+#### 9.5.2 用HTTP状态码来匹配你的反馈信息。
+
+##### 客户端和API都正常工作：
+
+* `200 OK`这个响应对GET, PUT, POST请求来说代表成功
+* `201 created`这个状态码应你该被返回无论何时一个实例被创建的时候，
+* `204 NoContent`代表这些请求是成功的被处理过的，但是没有返回任何的内容。
+
+##### 客户端错误：
+
+* `400 Bad Request` 表明这个请求没有被处理，因为服务端不知道请求的内容。
+* `401 Unauthorized` 表明请求缺少有效的认证信息来读取资源
+* `403 Forbidden` 表明请求是有效的并且经过认证的，但是客户端因为某些原因被禁止接受资源。
+* `404 Not Found` 表明请求的资源没有找到。
+* `406 Not Acceptable` 匹配在Accept-Charset和Accept-Language标头中定义的可接受值列表的响应无法提供。
+* `409 Conflict` 请求无法完成由于与目标资源的当前状态的冲突。
+* `410 Gone` 表明了所请求的资源不再可用,已经被故意的永久移动了。
+
+
+##### 服务端错误：
+* `500 Internal Server Error` 表明了请求是有效的，但是服务端由于一些异常情况不能执行这个请求。
+* `503 Service Unavailable` 表明服务器已经关闭了或者不在可用来接受或者处理请求，很有可能是服务器正在进行维护或者暂时性的负载。
+
+
+#### 9.6 资源参数和元数据
+
+#### 9.7 API安全
+
+#### 9.8 API 文档
+
+* 在这个[模板README](https://github.com/wearehive/project-guidelines/blob/master/README.sample.md)中填补上关于api的部分
+* 用代码实例来描述API的鉴权方法
+* 解释这个url的结构和类型
+
+每个端点的解释：
+
+* url参数，指明他们
+
+```
+Required: id=[integer]
+Optional: photo_id=[alphanumeric]
+```
+
+* 成功的响应，成功的状态码？是否有返回数据？返回数据的格式，当人们需要知道他们的回调函数应该接受怎么样的参数时这些都是有用的
+
+```
+Code: 200
+Content: { id : 12 }
+```
+
+* 错误响应，可能有许多种错误的情况，从未验权的请求到错误的参数等等。
+所有这些应该被列出来，可能会有些重复，但有效的防止了假设的情况。
+
+```json
+{
+    "code": 403,
+    "message" : "Authentication failed",
+    "description" : "Invalid username or password"
+}
+```
+
+#### 9.8.1 API设计工具
+这儿有许多的开源的API设计工具，例如[API Blueprint](https://apiblueprint.org/) 和 [Swagger](https://swagger.io/).
+
+--------
