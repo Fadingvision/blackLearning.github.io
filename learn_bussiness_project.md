@@ -82,6 +82,8 @@
 
 * Mobx在改变state的时候通通用`@action`标明
 
+* Vuex上的state对象必须通过`computed`计算属性进行接入,才能对其进行监听改变的时候更新UI.
+
 
 
 
