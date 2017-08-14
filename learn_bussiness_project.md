@@ -15,6 +15,7 @@
 
 * 将loading，　fetchOnScroll等逻辑拆分出来作为形成高阶组件，
 
+
 * 将isFetching，　isLoading等状态的ui逻辑__从业务逻辑中拆分出来__然后组合起来统一放到store中管理．
 
 	> 我的代码中通常在业务代码中混入了太多的类似下面的这种与业务逻辑无关的ui逻辑，导致代码看起来很松散，low.
@@ -78,12 +79,24 @@
 
 	> 我的组件中样式名是写死的，一旦想要复用组件但是对样式又有改变的话，只能进入css去强制覆盖，这样灵活性比较弱，而且容易冲突．
 
+
 * Mobx的Observable通常用可以更新的map方法，而不是简单的Observable对象，方便新增属性对其进行的跟踪。
 
 * Mobx在改变state的时候通通用`@action`标明
 
+* Vuex上的state对象必须通过`computed`计算属性进行接入,才能对其进行监听改变的时候更新UI.
 
+## function programming
 
+* 用function 代替`if`语句
+
+	```js
+		const isKitten = () => cat.month < 7;
+
+		// if
+		if(cat.month < 7) { do something... }
+
+	```
 
 
 
