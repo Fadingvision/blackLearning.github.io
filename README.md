@@ -1,6 +1,6 @@
 ## 一些学习和工作中随手记录的短文...
 
-## [精选文章](https://github.com/blackLearning/blackLearning.github.io/issues")
+## [精选文章](https://github.com/blackLearning/blackLearning.github.io/issues)
 
 * you don't need jQuery.md
 * underscore源码学习笔记.md
