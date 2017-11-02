@@ -55,10 +55,45 @@ npm package.json bin字段。
 
 3. 命令行执行输出
 
-## 二、如何编写一个Command-line tool
+在执行完监听事件后，可以利用回调函数在terminal tool上给用户一定的反馈信息。
+
+```js
+const shutdown = () => {
+    server.close()
+    // eslint-disable-next-line unicorn/no-process-exit
+    process.exit(0)
+  }
+
+  process.on('SIGINT', shutdown)
+  process.on('SIGTERM', shutdown)
+```
+执行输出之前，可以监听process进程，当ctrl+c退出的时候关闭服务。
+
+输出主要是利用console.log, 同时利用chalk工具来美化输出。
+
+## 二、如何使用http(s)Server创建一个静态文件服务器
+
+1. 使用mirco来启用http(s)服务，使用micro-compress来压缩静态资源。
 
 
+2. 开启CORS in server
 
+```
+// 如果参数中有cors，则开启access-control-allow-origin的header
+if (flags.cors) {
+  headers['Access-Control-Allow-Origin'] = '*'
+  headers['Access-Control-Allow-Headers'] =
+    'Origin, X-Requested-With, Content-Type, Accept, Range'
+}
+
+for (const header in headers) {
+  if (!{}.hasOwnProperty.call(headers, header)) {
+    continue
+  }
+
+  res.setHeader(header, headers[header])
+}
+```
 
 
 
