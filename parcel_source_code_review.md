@@ -7,6 +7,7 @@
 ### Bundler
 > 打包主程序
 
+
 ### Assets
 
 > 文件资源类，负责记录所有的原始资源，包含资源的下列信息：
@@ -34,9 +35,44 @@
 - siblingBundles(`Object`): 记录该打包资源的兄弟打包资源
 
 ### Parser
-> 资源解析类，规定了如何对各种资源进行解析
+> 资源打包解析类，规定了如何对各种资源进行解析
 
 ### Resolver
+> 资源路径解析类，如何对代码中引入的各种相对路径的资源路径进行解析，从而找到该模块的绝对路径。
+
+#### Example: 
+
+```
+./app.js  =>  /home/cxy/other_stuff/demos/parcel_demo/app.js
+react => /home/cxy/other_stuff/demos/parcel_demo/node_modules/react/index.js
+```
+####　node的模块路径解析规则：
+
+>当 Node 遇到 require(X) 时，按下面的顺序处理。
+（1）如果 X 是内置模块（比如 require('http'）) 
+　　a. 返回该模块。 
+　　b. 不再继续执行。
+（2）如果 X 以 "./" 或者 "/" 或者 "../" 开头 
+　　a. 根据 X 所在的父模块，确定 X 的绝对路径。 
+　　b. 将 X 当成文件，依次查找下面文件，只要其中有一个存在，就返回该文件，不再继续执行。
+```shell
+	X
+	X.js
+	X.json
+	X.node
+```
+　　c. 将 X 当成目录，依次查找下面文件，只要其中有一个存在，就返回该文件，不再继续执行。
+```shell
+X/package.json（main字段）
+X/index.js
+X/index.json
+X/index.node
+```
+（3）如果 X 不带路径 
+　　a. 根据 X 所在的父模块，确定 X 可能的安装目录。 
+　　b. 依次在每个目录中，将 X 当成文件名或目录名加载。
+（4） 抛出 "not found"
+
 
 ### Packager
 > 打包组合类，用于将各个打包结果组合，并生成最后的输出文件。
@@ -53,6 +89,32 @@
 
 ### Server , HMRServer
 > 为打包结果生成web服务
+
+----
+
+# Flows (打包流程)
+
+1. 利用Bundle　cli或者node api得到打包的配置选项
+2. 根据配置选项来加载插件，启动监控，启动hot module reload模式
+3. 如果是初次打包，需要递归创建dist目录
+4. 根据入口文件得到主资源（Asset实例） (Bundle.js #258)
+	- 通过Resolver类的resolve方法解析入口文件的绝对路径，
+		```js
+		let {path, pkg} = await this.resolver.resolve(name, parent);
+		```
+	- 有了模块的绝对路径，就可以加载该模块了。
+		```js
+		this.parser.getAsset(path, pkg, this.options);
+		```
+	-　根据对应的后缀名来区分不同的资源类型，通过Parser类来找到对应的Asset类对该资源生成Asset实例。
+
+	- 将对应的Asset实例与资源绝对路径通过`loadedAssets`(Set结构)一一对应起来，并在watcher添加该路径，观察该文件变化。
+        
+5. 将主入口Asset加入队列`buildQueue`，通过`buildQueuedAssets`方法遍历`buildQueue`，　然后通过`loadAsset`将每个资源进行加载
+
+	__loadAsset:__
+	- 首先尝试从缓存中读取该资源，如果有该资源，直接从缓存中读取，缓存文件被存在`.cache`文件夹中，这也是parcel打包速度很快的秘诀之一。
+	- 如果缓存中不存在该资源，通过Asset实例的process方法新生成Assets的打包串，
 
 
 
