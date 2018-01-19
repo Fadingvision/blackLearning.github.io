@@ -46,9 +46,8 @@
 ./app.js  =>  /home/cxy/other_stuff/demos/parcel_demo/app.js
 react => /home/cxy/other_stuff/demos/parcel_demo/node_modules/react/index.js
 ```
-####　node的模块路径解析规则：
 
->当 Node 遇到 require(X) 时，按下面的顺序处理。
+####　node的模块路径解析规则(当 Node 遇到 require(X) 时，按下面的顺序处理。)
 
 （1）如果 X 是内置模块（比如 require('http'）) 
 
@@ -109,15 +108,19 @@ X/index.node
 2. 根据配置选项来加载插件，启动监控，启动hot module reload模式
 3. 如果是初次打包，需要递归创建dist目录
 4. 根据入口文件得到主资源（Asset实例） （`resolveAsset`）(Bundle.js #258)
-	- 通过Resolver类的resolve方法解析入口文件的绝对路径，
-		```js
-		let {path, pkg} = await this.resolver.resolve(name, parent);
-		```
+	- 通过Resolver类的resolve方法解析入口文件的绝对路径
+
+	```js
+	let {path, pkg} = await this.resolver.resolve(name, parent);
+	```
+
 	- 有了模块的绝对路径，就可以加载该模块了。
-		```js
-		this.parser.getAsset(path, pkg, this.options);
-		```
-	-　根据对应的后缀名来区分不同的资源类型，通过Parser类来找到对应的Asset类对该资源生成Asset实例。
+
+	```js
+	this.parser.getAsset(path, pkg, this.options);
+	```
+
+	- 根据对应的后缀名来区分不同的资源类型，通过Parser类来找到对应的Asset类对该资源生成Asset实例。
 
 	- 将对应的Asset实例与资源绝对路径通过`loadedAssets`(Set结构)一一对应起来，并在watcher添加该路径，观察该文件变化。
         
@@ -128,15 +131,15 @@ X/index.node
 	- 如果缓存中不存在该资源，通过Asset实例的process方法新生成Assets的打包串
 	- 分析出该asset的所有依赖和隐式依赖。
 		```js
-			// Call the delegate to get implicit dependencies
-			let dependencies = processed.dependencies;
-			console.log(dependencies)
-			if (this.delegate.getImplicitDependencies) {
-			  let implicitDeps = await this.delegate.getImplicitDependencies(asset);
-			  if (implicitDeps) {
-			    dependencies = dependencies.concat(implicitDeps);
-			  }
-			}
+		// Call the delegate to get implicit dependencies
+		let dependencies = processed.dependencies;
+		console.log(dependencies)
+		if (this.delegate.getImplicitDependencies) {
+		  let implicitDeps = await this.delegate.getImplicitDependencies(asset);
+		  if (implicitDeps) {
+		    dependencies = dependencies.concat(implicitDeps);
+		  }
+		}
 		```
 	- 对所有依赖进行循环，然后再次对每个依赖执行`loadAsset`方法，依次递归的对每个依赖进行LoadAsset处理，形成Assets树，
 	即每个Asset实例中都有它自己的depAssets.
@@ -146,9 +149,9 @@ X/index.node
 
 6. 如果开启了hmr模式，则一次对这些更新的模块执行热更新。
 	```js
-		if (this.hmr && !isInitialBundle) {
-		  this.hmr.emitUpdate([...this.findOrphanAssets(), ...loadedAssets]);
-		}
+	if (this.hmr && !isInitialBundle) {
+	  this.hmr.emitUpdate([...this.findOrphanAssets(), ...loadedAssets]);
+	}
 	```
 
 7. 完成Assets树的建立之后，需要根据入口资源Asset实例构建BundleTree。（`createBundleTree`）
