@@ -62,19 +62,23 @@ react => /home/cxy/other_stuff/demos/parcel_demo/node_modules/react/index.js
 　　a. 根据 X 所在的父模块，确定 X 的绝对路径。 
 
 　　b. 将 X 当成文件，依次查找下面文件，只要其中有一个存在，就返回该文件，不再继续执行。
+	
 	```shell
 	X
 	X.js
 	X.json
 	X.node
 	```
+
 　　c. 将 X 当成目录，依次查找下面文件，只要其中有一个存在，就返回该文件，不再继续执行。
+	
 	```shell
 	X/package.json（main字段）
 	X/index.js
 	X/index.json
 	X/index.node
 	```
+
 （3）如果 X 不带路径 
 
 　　a. 根据 X 所在的父模块，确定 X 可能的安装目录。 
