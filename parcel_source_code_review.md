@@ -199,305 +199,256 @@ this.bundleHashes = await bundle.package(this, this.bundleHashes);
 
 完成整个资源树的建立后，就用`主打包`bundle实例来生成最终的打包文件。
 
-- 首先生成新的hash值，只有在旧的hash值不存在或者新的hash值不等于旧的hash值的时候，才进行`package`操作。
-- 然后循环该bundle的所有childBundle,依次进行打包操作。
-- 每个bundle实例都会生成一个最终的打包文件。
-
-- `Packager`实例：根据bundle的类型找到对应的打包资源处理类。
-
-- `packager.addAsset(asset);`
-以JsPackager类为例，看看如何通过asset实例来生成最后的打包文件。
-
-- 文件写入流
-
-首先创建一个写入的文件流`fs.createWriteStream`
-
-将模块加载开头代码插入，
-
-然后插入打包代码`asset.generated.js,`
-
-最后插入hot module reload所需的客户端代码(如果开启了hmr),
-
-最后结束文件流的写入。
-
-最终的js打包代码：
-
-```js
-require = (function(modules, cache, entry) {
-  // Save the require from previous bundle to this closure if any
-  var previousRequire = typeof require === 'function' && require;
-
-  function newRequire(name, jumped) {
-    if (!cache[name]) {
-      if (!modules[name]) {
-        // if we cannot find the module within our internal map or
-        // cache jump to the current global require ie. the last bundle
-        // that was added to the page.
-        var currentRequire = typeof require === 'function' && require;
-        if (!jumped && currentRequire) {
-          return currentRequire(name, true);
-        }
-
-        // If there are other bundles on this page the require from the
-        // previous one is saved to 'previousRequire'. Repeat this as
-        // many times as there are bundles until the module is found or
-        // we exhaust the require chain.
-        if (previousRequire) {
-          return previousRequire(name, true);
-        }
-
-        var err = new Error("Cannot find module '" + name + "'");
-        err.code = 'MODULE_NOT_FOUND';
-        throw err;
-      }
-
-      localRequire.resolve = resolve;
-
-      var module = (cache[name] = new newRequire.Module());
-
-      modules[name][0].call(module.exports, localRequire, module, module.exports);
-    }
-
-    return cache[name].exports;
-
-    function localRequire(x) {
-      return newRequire(localRequire.resolve(x));
-    }
-
-    function resolve(x) {
-      return modules[name][1][x] || x;
-    }
-  }
-
-  function Module() {
-    this.bundle = newRequire;
-    this.exports = {};
-  }
-
-  newRequire.Module = Module;
-  newRequire.modules = modules;
-  newRequire.cache = cache;
-  newRequire.parent = previousRequire;
-
-  for (var i = 0; i < entry.length; i++) {
-    newRequire(entry[i]);
-  }
-
-  // Override the current require with this new one
-  return newRequire;
-})(
-	// modules
-	{
-		1: [
-			     function(require, module, exports) {
-			       /**
-			* Copyright (c) 2013-present, Facebook, Inc.
-			*
-			* This source code is licensed under the MIT license found in the
-			* LICENSE file in the root directory of this source tree.
-			*
-			*/
-
-		       'use strict';
-
-		       var emptyObject = {};
-
-		       if ('development' !== 'production') {
-		         Object.freeze(emptyObject);
-		       }
-
-		       module.exports = emptyObject;
-		     },
-		     {}
-		],
+	- 首先生成新的hash值，只有在旧的hash值不存在或者新的hash值不等于旧的hash值的时候，才进行`package`操作。
 	
-		// 模块0通常用来当作hmr的代码插入，其他业务代码的模块id
-		一般以1开始
-
-		0: [
-      function(require, module, exports) {
-        var global = (1, eval)('this');
-        var OldModule = module.bundle.Module;
-        function Module() {
-          OldModule.call(this);
-          this.hot = {
-            accept: function(fn) {
-              this._acceptCallback = fn || function() {};
-            },
-            dispose: function(fn) {
-              this._disposeCallback = fn;
-            }
-          };
-        }
-
-        module.bundle.Module = Module;
-
-        if (!module.bundle.parent && typeof WebSocket !== 'undefined') {
-          var ws = new WebSocket('ws://' + window.location.hostname + ':45564/');
-          ws.onmessage = function(event) {
-            var data = JSON.parse(event.data);
-
-            if (data.type === 'update') {
-              data.assets.forEach(function(asset) {
-                hmrApply(global.require, asset);
-              });
-
-              data.assets.forEach(function(asset) {
-                if (!asset.isNew) {
-                  hmrAccept(global.require, asset.id);
-                }
-              });
-            }
-
-            if (data.type === 'reload') {
-              ws.close();
-              ws.onclose = function() {
-                window.location.reload();
-              };
-            }
-
-            if (data.type === 'error-resolved') {
-              console.log('[parcel] ✨ Error resolved');
-            }
-
-            if (data.type === 'error') {
-              console.error('[parcel] 🚨  ' + data.error.message + '\n' + 'data.error.stack');
-            }
-          };
-        }
-
-        function getParents(bundle, id) {
-          var modules = bundle.modules;
-          if (!modules) {
-            return [];
-          }
+	- 然后循环该bundle的所有childBundle,依次进行打包操作。
+	- 每个bundle实例都会生成一个最终的打包文件。
 
-          var parents = [];
-          var k, d, dep;
+	- `Packager`实例：根据bundle的类型找到对应的打包资源处理类。
 
-          for (k in modules) {
-            for (d in modules[k][1]) {
-              dep = modules[k][1][d];
-              if (dep === id || (Array.isArray(dep) && dep[dep.length - 1] === id)) {
-                parents.push(+k);
-              }
-            }
-          }
+	- `packager.addAsset(asset);`
+	以JsPackager类为例，看看如何通过asset实例来生成最后的打包文件。
 
-          if (bundle.parent) {
-            parents = parents.concat(getParents(bundle.parent, id));
-          }
-
-          return parents;
-        }
-
-        function hmrApply(bundle, asset) {
-          var modules = bundle.modules;
-          if (!modules) {
-            return;
-          }
-
-          if (modules[asset.id] || !bundle.parent) {
-            var fn = new Function('require', 'module', 'exports', asset.generated.js);
-            asset.isNew = !modules[asset.id];
-            modules[asset.id] = [fn, asset.deps];
-          } else if (bundle.parent) {
-            hmrApply(bundle.parent, asset);
-          }
-        }
-
-        function hmrAccept(bundle, id) {
-          var modules = bundle.modules;
-          if (!modules) {
-            return;
-          }
-
-          if (!modules[id] && bundle.parent) {
-            return hmrAccept(bundle.parent, id);
-          }
-
-          var cached = bundle.cache[id];
-          if (cached && cached.hot._disposeCallback) {
-            cached.hot._disposeCallback();
-          }
-
-          delete bundle.cache[id];
-          bundle(id);
-
-          cached = bundle.cache[id];
-          if (cached && cached.hot && cached.hot._acceptCallback) {
-            cached.hot._acceptCallback();
-            return true;
-          }
-
-          return getParents(global.require, id).some(function(id) {
-            return hmrAccept(global.require, id);
-          });
-        }
-      },
-      {}
-    ]
-	},
-
-	// cache
-	// 初始一般为一个空对象
-	{},
-	
-	// module entry
-	// 整个应用的入口，也是整个业务代码中最先执行的部分
-	[0, 2]
-)
-```	
-
-- 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+	- 文件写入流
+
+		首先创建一个写入的文件流`fs.createWriteStream`
+
+		将模块加载开头代码插入，
+
+		然后插入打包代码`asset.generated.js,`
+
+		最后插入hot module reload所需的客户端代码(如果开启了hmr),
+
+		最后结束文件流的写入。
+
+		最终的js打包代码：
+
+	```js
+	require = (function(modules, cache, entry) {
+	  // Save the require from previous bundle to this closure if any
+	  var previousRequire = typeof require === 'function' && require;
+
+	  function newRequire(name, jumped) {
+	    if (!cache[name]) {
+	      if (!modules[name]) {
+	        // if we cannot find the module within our internal map or
+	        // cache jump to the current global require ie. the last bundle
+	        // that was added to the page.
+	        var currentRequire = typeof require === 'function' && require;
+	        if (!jumped && currentRequire) {
+	          return currentRequire(name, true);
+	        }
+
+	        // If there are other bundles on this page the require from the
+	        // previous one is saved to 'previousRequire'. Repeat this as
+	        // many times as there are bundles until the module is found or
+	        // we exhaust the require chain.
+	        if (previousRequire) {
+	          return previousRequire(name, true);
+	        }
+
+	        var err = new Error("Cannot find module '" + name + "'");
+	        err.code = 'MODULE_NOT_FOUND';
+	        throw err;
+	      }
+
+	      localRequire.resolve = resolve;
+
+	      var module = (cache[name] = new newRequire.Module());
+
+	      modules[name][0].call(module.exports, localRequire, module, module.exports);
+	    }
+
+	    return cache[name].exports;
+
+	    function localRequire(x) {
+	      return newRequire(localRequire.resolve(x));
+	    }
+
+	    function resolve(x) {
+	      return modules[name][1][x] || x;
+	    }
+	  }
+
+	  function Module() {
+	    this.bundle = newRequire;
+	    this.exports = {};
+	  }
+
+	  newRequire.Module = Module;
+	  newRequire.modules = modules;
+	  newRequire.cache = cache;
+	  newRequire.parent = previousRequire;
+
+	  for (var i = 0; i < entry.length; i++) {
+	    newRequire(entry[i]);
+	  }
+
+	  // Override the current require with this new one
+	  return newRequire;
+	})(
+		// modules
+		{
+			1: [
+				     function(require, module, exports) {
+				       /**
+				* Copyright (c) 2013-present, Facebook, Inc.
+				*
+				* This source code is licensed under the MIT license found in the
+				* LICENSE file in the root directory of this source tree.
+				*
+				*/
+
+			       'use strict';
+
+			       var emptyObject = {};
+
+			       if ('development' !== 'production') {
+			         Object.freeze(emptyObject);
+			       }
+
+			       module.exports = emptyObject;
+			     },
+			     {}
+			],
+		
+			// 模块0通常用来当作hmr的代码插入，其他业务代码的模块id
+			一般以1开始
+
+			0: [
+	      function(require, module, exports) {
+	        var global = (1, eval)('this');
+	        var OldModule = module.bundle.Module;
+	        function Module() {
+	          OldModule.call(this);
+	          this.hot = {
+	            accept: function(fn) {
+	              this._acceptCallback = fn || function() {};
+	            },
+	            dispose: function(fn) {
+	              this._disposeCallback = fn;
+	            }
+	          };
+	        }
+
+	        module.bundle.Module = Module;
+
+	        if (!module.bundle.parent && typeof WebSocket !== 'undefined') {
+	          var ws = new WebSocket('ws://' + window.location.hostname + ':45564/');
+	          ws.onmessage = function(event) {
+	            var data = JSON.parse(event.data);
+
+	            if (data.type === 'update') {
+	              data.assets.forEach(function(asset) {
+	                hmrApply(global.require, asset);
+	              });
+
+	              data.assets.forEach(function(asset) {
+	                if (!asset.isNew) {
+	                  hmrAccept(global.require, asset.id);
+	                }
+	              });
+	            }
+
+	            if (data.type === 'reload') {
+	              ws.close();
+	              ws.onclose = function() {
+	                window.location.reload();
+	              };
+	            }
+
+	            if (data.type === 'error-resolved') {
+	              console.log('[parcel] ✨ Error resolved');
+	            }
+
+	            if (data.type === 'error') {
+	              console.error('[parcel] 🚨  ' + data.error.message + '\n' + 'data.error.stack');
+	            }
+	          };
+	        }
+
+	        function getParents(bundle, id) {
+	          var modules = bundle.modules;
+	          if (!modules) {
+	            return [];
+	          }
+
+	          var parents = [];
+	          var k, d, dep;
+
+	          for (k in modules) {
+	            for (d in modules[k][1]) {
+	              dep = modules[k][1][d];
+	              if (dep === id || (Array.isArray(dep) && dep[dep.length - 1] === id)) {
+	                parents.push(+k);
+	              }
+	            }
+	          }
+
+	          if (bundle.parent) {
+	            parents = parents.concat(getParents(bundle.parent, id));
+	          }
+
+	          return parents;
+	        }
+
+	        function hmrApply(bundle, asset) {
+	          var modules = bundle.modules;
+	          if (!modules) {
+	            return;
+	          }
+
+	          if (modules[asset.id] || !bundle.parent) {
+	            var fn = new Function('require', 'module', 'exports', asset.generated.js);
+	            asset.isNew = !modules[asset.id];
+	            modules[asset.id] = [fn, asset.deps];
+	          } else if (bundle.parent) {
+	            hmrApply(bundle.parent, asset);
+	          }
+	        }
+
+	        function hmrAccept(bundle, id) {
+	          var modules = bundle.modules;
+	          if (!modules) {
+	            return;
+	          }
+
+	          if (!modules[id] && bundle.parent) {
+	            return hmrAccept(bundle.parent, id);
+	          }
+
+	          var cached = bundle.cache[id];
+	          if (cached && cached.hot._disposeCallback) {
+	            cached.hot._disposeCallback();
+	          }
+
+	          delete bundle.cache[id];
+	          bundle(id);
+
+	          cached = bundle.cache[id];
+	          if (cached && cached.hot && cached.hot._acceptCallback) {
+	            cached.hot._acceptCallback();
+	            return true;
+	          }
+
+	          return getParents(global.require, id).some(function(id) {
+	            return hmrAccept(global.require, id);
+	          });
+	        }
+	      },
+	      {}
+	    ]
+		},
+
+		// cache
+		// 初始一般为一个空对象
+		{},
+		
+		// module entry
+		// 整个应用的入口，也是整个业务代码中最先执行的部分
+		[0, 2]
+	)
+	```	
 
 9. 记录整个过程的打包时间，并输出打包的成功或失败的消息，
 并触发`buildEnd`事件，重置pending状态，整个打包至此结束。
@@ -506,33 +457,19 @@ require = (function(modules, cache, entry) {
 ##  更新流程
 
 
+## Q&A
 
+1.　如何处理重复资源打包的问题？
 
+2. 如何处理各种非Js资源?
 
+3. 如何利用webSocket 启用HMR功能？
 
+4. 如何利用缓存提高打包速度？
 
+5. 如何处理不同模块系统的代码，并生成统一的模块依赖方式？
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+6. 如何自定义一个Parcel-plugin,或者新增一个资源类型处理的类？
 
 
 
