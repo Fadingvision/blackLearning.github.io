@@ -106,7 +106,9 @@ react => /home/cxy/other_stuff/demos/parcel_demo/node_modules/react/index.js
 
 ----
 
-# Flows (打包流程)
+# Flows
+
+##  初始打包流程
 
 1. 利用Bundle　cli或者node api得到打包的配置选项
 2. 根据配置选项来加载插件，启动监控，启动hot module reload模式
@@ -160,13 +162,348 @@ react => /home/cxy/other_stuff/demos/parcel_demo/node_modules/react/index.js
 
 7. 完成Assets树的建立之后，需要根据入口资源Asset实例构建BundleTree。（`createBundleTree`）
 
+	- 创建根bundle实例，并将实例的入口资源设为打包的资源。
+	- 将bundle实例加入到`asset`实例的bundles集合中，将`asset`实例
+	加入到bundle实例的`assets`资源中，这样形成两者相互引用。
+	－　循环该资源的所有依赖，并对这些依赖构建bundleTree, 这样递归形成一个`Bundle Tree`.
+
+	- 构建子bundle的时候，将`dep`加入到asset的parentDeps中
+
+	- 判断重复打包：　
+		```
+		if (asset.parentBundle) {
+		  // If the asset is already in a bundle, it is shared. Move it to the lowest common ancestor.
+		  if (asset.parentBundle !== bundle) {
+		    let commonBundle = bundle.findCommonAncestor(asset.parentBundle);
+		    if (
+		      asset.parentBundle !== commonBundle &&
+		      asset.parentBundle.type === commonBundle.type
+		    ) {
+		      this.moveAssetToBundle(asset, commonBundle);
+		      return;
+		    }
+		  } else return;
+		}
+		```
+
+		如果一个资源的`parentBundle`已经存在并且等于此次正在对它进行打包的`bundle` => 同样是父资源，那么说明他已经被打包过了，则直接跳过接下来的打包程序。
+
+		@TODO: `if (asset.parentBundle !== bundle)`
+		如果一个资源的打包出口不一样，则需要将其提取出来放到公共的父bundle中去，从而避免一份代码重复的打包到了两份输出中。
+
 8. 完成所有资源的分析、解析、处理之后，需要把他们按照一定的顺序和结构将其组成最终的打包文件，并生成到最后的dist目录中.
+
+```js
+this.bundleHashes = await bundle.package(this, this.bundleHashes);
+```
+
+完成整个资源树的建立后，就用`主打包`bundle实例来生成最终的打包文件。
+
+- 首先生成新的hash值，只有在旧的hash值不存在或者新的hash值不等于旧的hash值的时候，才进行`package`操作。
+- 然后循环该bundle的所有childBundle,依次进行打包操作。
+- 每个bundle实例都会生成一个最终的打包文件。
+
+- `Packager`实例：根据bundle的类型找到对应的打包资源处理类。
+
+- `packager.addAsset(asset);`
+以JsPackager类为例，看看如何通过asset实例来生成最后的打包文件。
+
+- 文件写入流
+
+首先创建一个写入的文件流`fs.createWriteStream`
+
+将模块加载开头代码插入，
+
+然后插入打包代码`asset.generated.js,`
+
+最后插入hot module reload所需的客户端代码(如果开启了hmr),
+
+最后结束文件流的写入。
+
+最终的js打包代码：
+
+```js
+require = (function(modules, cache, entry) {
+  // Save the require from previous bundle to this closure if any
+  var previousRequire = typeof require === 'function' && require;
+
+  function newRequire(name, jumped) {
+    if (!cache[name]) {
+      if (!modules[name]) {
+        // if we cannot find the module within our internal map or
+        // cache jump to the current global require ie. the last bundle
+        // that was added to the page.
+        var currentRequire = typeof require === 'function' && require;
+        if (!jumped && currentRequire) {
+          return currentRequire(name, true);
+        }
+
+        // If there are other bundles on this page the require from the
+        // previous one is saved to 'previousRequire'. Repeat this as
+        // many times as there are bundles until the module is found or
+        // we exhaust the require chain.
+        if (previousRequire) {
+          return previousRequire(name, true);
+        }
+
+        var err = new Error("Cannot find module '" + name + "'");
+        err.code = 'MODULE_NOT_FOUND';
+        throw err;
+      }
+
+      localRequire.resolve = resolve;
+
+      var module = (cache[name] = new newRequire.Module());
+
+      modules[name][0].call(module.exports, localRequire, module, module.exports);
+    }
+
+    return cache[name].exports;
+
+    function localRequire(x) {
+      return newRequire(localRequire.resolve(x));
+    }
+
+    function resolve(x) {
+      return modules[name][1][x] || x;
+    }
+  }
+
+  function Module() {
+    this.bundle = newRequire;
+    this.exports = {};
+  }
+
+  newRequire.Module = Module;
+  newRequire.modules = modules;
+  newRequire.cache = cache;
+  newRequire.parent = previousRequire;
+
+  for (var i = 0; i < entry.length; i++) {
+    newRequire(entry[i]);
+  }
+
+  // Override the current require with this new one
+  return newRequire;
+})(
+	// modules
+	{
+		1: [
+			     function(require, module, exports) {
+			       /**
+			* Copyright (c) 2013-present, Facebook, Inc.
+			*
+			* This source code is licensed under the MIT license found in the
+			* LICENSE file in the root directory of this source tree.
+			*
+			*/
+
+		       'use strict';
+
+		       var emptyObject = {};
+
+		       if ('development' !== 'production') {
+		         Object.freeze(emptyObject);
+		       }
+
+		       module.exports = emptyObject;
+		     },
+		     {}
+		],
+	
+		// 模块0通常用来当作hmr的代码插入，其他业务代码的模块id
+		一般以1开始
+
+		0: [
+      function(require, module, exports) {
+        var global = (1, eval)('this');
+        var OldModule = module.bundle.Module;
+        function Module() {
+          OldModule.call(this);
+          this.hot = {
+            accept: function(fn) {
+              this._acceptCallback = fn || function() {};
+            },
+            dispose: function(fn) {
+              this._disposeCallback = fn;
+            }
+          };
+        }
+
+        module.bundle.Module = Module;
+
+        if (!module.bundle.parent && typeof WebSocket !== 'undefined') {
+          var ws = new WebSocket('ws://' + window.location.hostname + ':45564/');
+          ws.onmessage = function(event) {
+            var data = JSON.parse(event.data);
+
+            if (data.type === 'update') {
+              data.assets.forEach(function(asset) {
+                hmrApply(global.require, asset);
+              });
+
+              data.assets.forEach(function(asset) {
+                if (!asset.isNew) {
+                  hmrAccept(global.require, asset.id);
+                }
+              });
+            }
+
+            if (data.type === 'reload') {
+              ws.close();
+              ws.onclose = function() {
+                window.location.reload();
+              };
+            }
+
+            if (data.type === 'error-resolved') {
+              console.log('[parcel] ✨ Error resolved');
+            }
+
+            if (data.type === 'error') {
+              console.error('[parcel] 🚨  ' + data.error.message + '\n' + 'data.error.stack');
+            }
+          };
+        }
+
+        function getParents(bundle, id) {
+          var modules = bundle.modules;
+          if (!modules) {
+            return [];
+          }
+
+          var parents = [];
+          var k, d, dep;
+
+          for (k in modules) {
+            for (d in modules[k][1]) {
+              dep = modules[k][1][d];
+              if (dep === id || (Array.isArray(dep) && dep[dep.length - 1] === id)) {
+                parents.push(+k);
+              }
+            }
+          }
+
+          if (bundle.parent) {
+            parents = parents.concat(getParents(bundle.parent, id));
+          }
+
+          return parents;
+        }
+
+        function hmrApply(bundle, asset) {
+          var modules = bundle.modules;
+          if (!modules) {
+            return;
+          }
+
+          if (modules[asset.id] || !bundle.parent) {
+            var fn = new Function('require', 'module', 'exports', asset.generated.js);
+            asset.isNew = !modules[asset.id];
+            modules[asset.id] = [fn, asset.deps];
+          } else if (bundle.parent) {
+            hmrApply(bundle.parent, asset);
+          }
+        }
+
+        function hmrAccept(bundle, id) {
+          var modules = bundle.modules;
+          if (!modules) {
+            return;
+          }
+
+          if (!modules[id] && bundle.parent) {
+            return hmrAccept(bundle.parent, id);
+          }
+
+          var cached = bundle.cache[id];
+          if (cached && cached.hot._disposeCallback) {
+            cached.hot._disposeCallback();
+          }
+
+          delete bundle.cache[id];
+          bundle(id);
+
+          cached = bundle.cache[id];
+          if (cached && cached.hot && cached.hot._acceptCallback) {
+            cached.hot._acceptCallback();
+            return true;
+          }
+
+          return getParents(global.require, id).some(function(id) {
+            return hmrAccept(global.require, id);
+          });
+        }
+      },
+      {}
+    ]
+	},
+
+	// cache
+	// 初始一般为一个空对象
+	{},
+	
+	// module entry
+	// 整个应用的入口，也是整个业务代码中最先执行的部分
+	[0, 2]
+)
+```	
+
+- 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 9. 记录整个过程的打包时间，并输出打包的成功或失败的消息，
 并触发`buildEnd`事件，重置pending状态，整个打包至此结束。
 
 
-
+##  更新流程
 
 
 
