@@ -2,6 +2,7 @@
 
 ## [精选文章](https://github.com/blackLearning/blackLearning.github.io/issues)
 
+* Parcel-bundler源码解读
 * redux and mobx comparision
 * react使用过程中的一些best Practise小记
 * webpack 2.2.1 学习小记
