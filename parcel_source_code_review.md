@@ -131,10 +131,20 @@ react => /home/cxy/other_stuff/demos/parcel_demo/node_modules/react/index.js
 	- 将对应的Asset实例与资源绝对路径通过`loadedAssets`(Set结构)一一对应起来，并在watcher添加该路径，观察该文件变化。
         
 5. 将主入口Asset加入队列`buildQueue`，遍历`buildQueue`，　然后通过`loadAsset`将每个资源进行加载。（`buildQueuedAssets`）
-
+	
 	__loadAsset:__
 	- 首先尝试从缓存中读取该资源，如果有该资源，直接从缓存中读取，缓存文件被存在`.cache`文件夹中，这也是parcel打包速度很快的秘诀之一。
-	- 如果缓存中不存在该资源，通过Asset实例的process方法新生成Assets的打包串
+	- 如果缓存中不存在该资源，在farm中通过Asset实例的process方法进行资源的加载和处理。
+
+		__process:__
+		`load`: 从原始文件中读取文件内容。
+		`pretransform`: 预处理，比如js资源会用babel()进行转换
+		`getDependencies`:　这里主要对资源字符串进行解析，例如html字符串用`posthtml-parser`, js资源用`babylon.parse`来解析。然后收集依赖`collectDependencies`，具体操作稍后分析。
+		`transform`: 资源处理, 具体操作稍后分析。
+		`generate`: 处理转换完毕之后，生成最后的打包代码字符串。
+		格式一般为{`[type]`: `code`}
+		`generateHash`: 为该资源生成hash字符串。
+
 	- 分析出该asset的所有依赖和隐式依赖。
 		```js
 		// Call the delegate to get implicit dependencies
@@ -200,7 +210,7 @@ this.bundleHashes = await bundle.package(this, this.bundleHashes);
 完成整个资源树的建立后，就用`主打包`bundle实例来生成最终的打包文件。
 
 	- 首先生成新的hash值，只有在旧的hash值不存在或者新的hash值不等于旧的hash值的时候，才进行`package`操作。
-	
+
 	- 然后循环该bundle的所有childBundle,依次进行打包操作。
 	- 每个bundle实例都会生成一个最终的打包文件。
 
@@ -459,17 +469,21 @@ this.bundleHashes = await bundle.package(this, this.bundleHashes);
 
 ## Q&A
 
-1.　如何处理重复资源打包的问题？
+-　如何收集各个资源中的依赖？
 
-2. 如何处理各种非Js资源?
+-　不同类型的资源怎么做不同的处理和转换？
 
-3. 如何利用webSocket 启用HMR功能？
+-　如何处理重复资源打包的问题？
 
-4. 如何利用缓存提高打包速度？
+- 如何处理各种非Js资源?
 
-5. 如何处理不同模块系统的代码，并生成统一的模块依赖方式？
+- 如何利用webSocket 实现HMR功能？
 
-6. 如何自定义一个Parcel-plugin,或者新增一个资源类型处理的类？
+- 如何利用缓存提高打包速度？
+
+- 如何处理不同模块系统的代码，并生成统一的模块依赖方式？
+
+- 如何自定义一个Parcel-plugin,或者新增一个资源类型处理的类？
 
 
 
