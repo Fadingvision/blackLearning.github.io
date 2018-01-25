@@ -10,29 +10,99 @@
 
 ### Assets
 
-> 文件资源类，负责记录所有的原始资源，包含资源的下列信息：
+文件资源类，负责记录所有的原始资源，资源打包的结果信息；
+负责自身资源的处理，资源依赖的收集，包含资源的下列信息：
 
+> offical comments: 一个资源代表了依赖树中的一个文件，
+该资源可以有很多父资源去依赖它，并且能够被加入到多个输出的bundles中，基类Asset自身并不做太多工作，只是设置一个接口给子类去实现，例如JsAsset, HTMLAsset, LessAssets等等。
+
+__properties:__
+
+- id: 简单的id生成方法：从1开始自加
 - ast: 抽象语法树
-- basename: 名称
-- type: 类型
-- bundles(`Set`): 打包资源，Bundle的实例
+- basename: 资源名称(e: index.html)
+- name: 带有绝对路径的资源名称
+- type: 资源类型(取资源名称后缀)
+- bundles(`Set`): 该资源被打包进去的包，Bundle的实例
 - depAssets(`Map`): 记录该资源的其他依赖资源，Asset实例
 - dependencies(`Map`): 记录该资源的其他依赖资源名称等信息
 - generated(`Object`): 记录该资源打包后生成的文件内容
 - hash(`Object`): 记录该资源hash值
 - options, package: 来自bundler的信息
 - processed: 记录该资源是否已经被打包过的标识
+- parentDeps(`Set`): 记录父资源（即依赖该资源的资源）的dependencies
 
+- parentBundle: 记录父资源（即依赖该资源的资源）的bundle
+
+__methods:__
+
+- `load`: 从原始文件中读取文件内容。
+- `collectDependencies`:　收集依赖`collectDependencies`，留给子类实现
+- `parse`: 解析处理代码，不同类型的资源解析处理方式不同，例如html字符串用`posthtml-parser`, js资源用`babylon.parse`来解析，因此一般留给子类实现
+- `pretransform`: 预处理，比如js资源会用babel()进行转换，留给子类实现
+- `transform`: 资源处理，留给子类实现
+- `generate`: 处理转换完毕之后，生成最后的打包代码字符串。格式一般为`{　[type]: code　}`，如果子类没有实现此方法，默认为原始的字符串，
+- `generateHash`: 为该资源生成hash字符串。
+
+- `invalidate`: 重置asset的状态
+- `invalidateBundle`:　重置asset的bundles状态
+
+- `addURLDependency`:
+- `generateBundleName`:
 
 ### Bundle
-> 打包文件结果类，负责记录所有的打包结果信息，包含下列信息：
+打包文件结果类，负责记录所有的打包结果信息，包含下列信息：
+
+> comments: 一个bundle实例代表了一个打包输出的文件，它由多个资源组成，bundle可以有子bundle，当动态从该bundle导入文件的时候，或者导入一个其他类型资源的文件的时候（例如从JS中引入一个css文件，就会在这个js文件的bundle产生一个childBundle为css），会产生childBundles.
+
+__properties:__
 
 - name: 包含名称的完整生成路径
 - type: 类型
-- assets(`Set`): 原始资源，Asset实例
+- assets(`Set`): 所有组成该bundle的资源数组
 - entryAsset(`Map`): 记录该打包资源的入口资源，Asset实例
 - childBundles(`Map`): 记录该打包资源的子打包资源
+- parentBundle: 记录父级bundle
 - siblingBundles(`Object`): 记录该打包资源的兄弟打包资源
+
+__methods:__
+
+- addAsset: 添加资源到assets的Set中，由于Set结构的天然去重特性，这里不用担心资源重复的问题。
+- removeAsset: 从assets的Set中移除资源
+- getSiblingBundle: 获取兄弟资源的打包，这里分为几种情况：
+
+```js
+bundle.getSiblingBundle(asset.type).addAsset(asset);　// Bundler.js (#404)
+
+getSiblingBundle(type) {
+  // 1. 如果获取的asset的类型与已经打包的bundle类的类型一致，则直接将this返回
+  然后将asset加入assets队列中，无需新增bundle实例。
+
+  if (!type || type === this.type) {
+    return this;
+  }
+  
+  // 2.　检测已经存在的siblingBundles是否存在该类型的bundle,如果存在，那么直接取该bundle，否则新增一个chileBundle(新的bundle实例)
+
+  if (!this.siblingBundles.has(type)) {
+    let bundle = this.createChildBundle(
+      type,
+      Path.join(
+        Path.dirname(this.name),
+        Path.basename(this.name, Path.extname(this.name)) + '.' + type
+      )
+    );
+    this.siblingBundles.set(type, bundle);
+  }
+
+  return this.siblingBundles.get(type);
+}
+```
+
+- createChildBundle: 新增一个bundle实例，将其放入childBundles中。
+
+- package: 将自身bundle树遍历，根据每个bundle然后组合打包的代码，生成最终的打包文件。
+
 
 ### Parser
 > 资源打包解析类，规定了如何对各种资源进行解析
@@ -481,25 +551,43 @@ require = (function(modules, cache, entry) {
 ## Q&A
 
 
-- 如何收集各个资源中的依赖？
-- 不同类型的资源怎么做不同的处理和转换？
-- 如何处理重复资源打包的问题？
+- 如何收集各个资源中的依赖？(asset.collectDependencies)
 
-- 如何处理各种非Js资源?
+- 不同类型的资源怎么做不同的处理和转换？(asset.parse, asset.transform)
 
-- 如何利用webSocket 实现HMR功能？
+- 如何实现动态导入？(dep.dynamic)
 
-- 如何利用缓存提高打包速度？
+- 如何处理重复资源打包的问题？(findCommonAncestor)
 
-- 如何处理不同模块系统的代码，并生成统一的模块依赖方式？
+- 如何处理不同模块系统的代码，并生成统一的模块依赖方式？(babel, prelude.js)
+
+- 如何处理各种非Js资源? (Asset的各种子类实现)
+
+- 如何监听打包资源的变化？(FSWatcher, onChange)
+
+- 如何利用webSocket 实现HMR功能？ (HMRServer, hmr-runtime)
+
+- 如何利用缓存提高打包速度？(Cache)
 
 - 如何自定义一个Parcel-plugin,或者新增一个资源类型处理的类？
 
 
 
 
+## The good things you can learn through the code-review 
+
+### 业务层面：
+
+1. 熟悉工具或框架的使用，API.
+2. 对使用过程中出现的问题能够快速的debug.
+3. 对于工具深度的性能优化有更深的了解。
 
 
+###　技术层面：
+
+1. 代码的风格，命名，注释，设计模式，编程范式，小技巧的使用
+2. 平时不容易用到的技术的了解和熟悉（比如parcel的websocket, hmr, 缓存）
+3. 平时不容易用到的深层次的语言特性的熟悉(原型，继承，async, generator, iterator等等)
 
 
 
