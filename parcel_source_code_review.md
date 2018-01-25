@@ -215,29 +215,29 @@ this.bundleHashes = await bundle.package(this, this.bundleHashes);
 
 完成整个资源树的建立后，就用`主打包`bundle实例来生成最终的打包文件。
 
-	- 首先生成新的hash值，只有在旧的hash值不存在或者新的hash值不等于旧的hash值的时候，才进行`package`操作。
+- 首先生成新的hash值，只有在旧的hash值不存在或者新的hash值不等于旧的hash值的时候，才进行`package`操作。
 
-	- 然后循环该bundle的所有childBundle,依次进行打包操作。
-	- 每个bundle实例都会生成一个最终的打包文件。
+- 然后循环该bundle的所有childBundle,依次进行打包操作。
+- 每个bundle实例都会生成一个最终的打包文件。
 
-	- `Packager`实例：根据bundle的类型找到对应的打包资源处理类。
+- `Packager`实例：根据bundle的类型找到对应的打包资源处理类。
 
-	- `packager.addAsset(asset);`
-	以JsPackager类为例，看看如何通过asset实例来生成最后的打包文件。
+- `packager.addAsset(asset);`
+以JsPackager类为例，看看如何通过asset实例来生成最后的打包文件。
 
-	- 文件写入流
+- 文件写入流
 
-	首先创建一个写入的文件流`fs.createWriteStream`
+首先创建一个写入的文件流`fs.createWriteStream`
 
-	将模块加载开头代码插入，
+将模块加载开头代码插入，
 
-	然后插入打包代码`asset.generated.js,`
+然后插入打包代码`asset.generated.js,`
 
-	最后插入hot module reload所需的客户端代码(如果开启了hmr),
+最后插入hot module reload所需的客户端代码(如果开启了hmr),
 
-	最后结束文件流的写入。
+最后结束文件流的写入。
 
-	最终的js打包代码：
+最终的js打包代码：
 
 
 ```js
