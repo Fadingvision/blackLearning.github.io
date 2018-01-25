@@ -241,6 +241,7 @@ this.bundleHashes = await bundle.package(this, this.bundleHashes);
 
 
 ```js
+// module prelude
 require = (function(modules, cache, entry) {
   // Save the require from previous bundle to this closure if any
   var previousRequire = typeof require === 'function' && require;
@@ -480,11 +481,9 @@ require = (function(modules, cache, entry) {
 ## Q&A
 
 
--　如何收集各个资源中的依赖？
-
--　不同类型的资源怎么做不同的处理和转换？
-
--　如何处理重复资源打包的问题？
+- 如何收集各个资源中的依赖？
+- 不同类型的资源怎么做不同的处理和转换？
+- 如何处理重复资源打包的问题？
 
 - 如何处理各种非Js资源?
 
