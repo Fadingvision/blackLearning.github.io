@@ -136,13 +136,19 @@ react => /home/cxy/other_stuff/demos/parcel_demo/node_modules/react/index.js
 	- 首先尝试从缓存中读取该资源，如果有该资源，直接从缓存中读取，缓存文件被存在`.cache`文件夹中，这也是parcel打包速度很快的秘诀之一。
 	- 如果缓存中不存在该资源，在farm中通过Asset实例的process方法进行资源的加载和处理。
 
-		__process:__
+		__process():__
+
 		`load`: 从原始文件中读取文件内容。
+
 		`pretransform`: 预处理，比如js资源会用babel()进行转换
+
 		`getDependencies`:　这里主要对资源字符串进行解析，例如html字符串用`posthtml-parser`, js资源用`babylon.parse`来解析。然后收集依赖`collectDependencies`，具体操作稍后分析。
+
 		`transform`: 资源处理, 具体操作稍后分析。
+
 		`generate`: 处理转换完毕之后，生成最后的打包代码字符串。
 		格式一般为{`[type]`: `code`}
+
 		`generateHash`: 为该资源生成hash字符串。
 
 	- 分析出该asset的所有依赖和隐式依赖。
@@ -221,253 +227,258 @@ this.bundleHashes = await bundle.package(this, this.bundleHashes);
 
 	- 文件写入流
 
-		首先创建一个写入的文件流`fs.createWriteStream`
+	首先创建一个写入的文件流`fs.createWriteStream`
 
-		将模块加载开头代码插入，
+	将模块加载开头代码插入，
 
-		然后插入打包代码`asset.generated.js,`
+	然后插入打包代码`asset.generated.js,`
 
-		最后插入hot module reload所需的客户端代码(如果开启了hmr),
+	最后插入hot module reload所需的客户端代码(如果开启了hmr),
 
-		最后结束文件流的写入。
+	最后结束文件流的写入。
 
-		最终的js打包代码：
+	最终的js打包代码：
 
-	```js
-	require = (function(modules, cache, entry) {
-	  // Save the require from previous bundle to this closure if any
-	  var previousRequire = typeof require === 'function' && require;
 
-	  function newRequire(name, jumped) {
-	    if (!cache[name]) {
-	      if (!modules[name]) {
-	        // if we cannot find the module within our internal map or
-	        // cache jump to the current global require ie. the last bundle
-	        // that was added to the page.
-	        var currentRequire = typeof require === 'function' && require;
-	        if (!jumped && currentRequire) {
-	          return currentRequire(name, true);
-	        }
+```js
+require = (function(modules, cache, entry) {
+  // Save the require from previous bundle to this closure if any
+  var previousRequire = typeof require === 'function' && require;
 
-	        // If there are other bundles on this page the require from the
-	        // previous one is saved to 'previousRequire'. Repeat this as
-	        // many times as there are bundles until the module is found or
-	        // we exhaust the require chain.
-	        if (previousRequire) {
-	          return previousRequire(name, true);
-	        }
+  function newRequire(name, jumped) {
+    if (!cache[name]) {
+      if (!modules[name]) {
+        // if we cannot find the module within our internal map or
+        // cache jump to the current global require ie. the last bundle
+        // that was added to the page.
+        var currentRequire = typeof require === 'function' && require;
+        if (!jumped && currentRequire) {
+          return currentRequire(name, true);
+        }
 
-	        var err = new Error("Cannot find module '" + name + "'");
-	        err.code = 'MODULE_NOT_FOUND';
-	        throw err;
-	      }
+        // If there are other bundles on this page the require from the
+        // previous one is saved to 'previousRequire'. Repeat this as
+        // many times as there are bundles until the module is found or
+        // we exhaust the require chain.
+        if (previousRequire) {
+          return previousRequire(name, true);
+        }
 
-	      localRequire.resolve = resolve;
+        var err = new Error("Cannot find module '" + name + "'");
+        err.code = 'MODULE_NOT_FOUND';
+        throw err;
+      }
 
-	      var module = (cache[name] = new newRequire.Module());
+      localRequire.resolve = resolve;
 
-	      modules[name][0].call(module.exports, localRequire, module, module.exports);
-	    }
+      var module = (cache[name] = new newRequire.Module());
 
-	    return cache[name].exports;
+      modules[name][0].call(module.exports, localRequire, module, module.exports);
+    }
 
-	    function localRequire(x) {
-	      return newRequire(localRequire.resolve(x));
-	    }
+    return cache[name].exports;
 
-	    function resolve(x) {
-	      return modules[name][1][x] || x;
-	    }
-	  }
+    function localRequire(x) {
+      return newRequire(localRequire.resolve(x));
+    }
 
-	  function Module() {
-	    this.bundle = newRequire;
-	    this.exports = {};
-	  }
+    function resolve(x) {
+      return modules[name][1][x] || x;
+    }
+  }
 
-	  newRequire.Module = Module;
-	  newRequire.modules = modules;
-	  newRequire.cache = cache;
-	  newRequire.parent = previousRequire;
+  function Module() {
+    this.bundle = newRequire;
+    this.exports = {};
+  }
 
-	  for (var i = 0; i < entry.length; i++) {
-	    newRequire(entry[i]);
-	  }
+  newRequire.Module = Module;
+  newRequire.modules = modules;
+  newRequire.cache = cache;
+  newRequire.parent = previousRequire;
 
-	  // Override the current require with this new one
-	  return newRequire;
-	})(
-		// modules
-		{
-			1: [
-				     function(require, module, exports) {
-				       /**
-				* Copyright (c) 2013-present, Facebook, Inc.
-				*
-				* This source code is licensed under the MIT license found in the
-				* LICENSE file in the root directory of this source tree.
-				*
-				*/
+  for (var i = 0; i < entry.length; i++) {
+    newRequire(entry[i]);
+  }
 
-			       'use strict';
+  // Override the current require with this new one
+  return newRequire;
+})(
+	// modules
+	{
+		1: [
+			     function(require, module, exports) {
+			       /**
+			* Copyright (c) 2013-present, Facebook, Inc.
+			*
+			* This source code is licensed under the MIT license found in the
+			* LICENSE file in the root directory of this source tree.
+			*
+			*/
 
-			       var emptyObject = {};
+		       'use strict';
 
-			       if ('development' !== 'production') {
-			         Object.freeze(emptyObject);
-			       }
+		       var emptyObject = {};
 
-			       module.exports = emptyObject;
-			     },
-			     {}
-			],
-		
-			// 模块0通常用来当作hmr的代码插入，其他业务代码的模块id
-			一般以1开始
+		       if ('development' !== 'production') {
+		         Object.freeze(emptyObject);
+		       }
 
-			0: [
-	      function(require, module, exports) {
-	        var global = (1, eval)('this');
-	        var OldModule = module.bundle.Module;
-	        function Module() {
-	          OldModule.call(this);
-	          this.hot = {
-	            accept: function(fn) {
-	              this._acceptCallback = fn || function() {};
-	            },
-	            dispose: function(fn) {
-	              this._disposeCallback = fn;
-	            }
-	          };
-	        }
+		       module.exports = emptyObject;
+		     },
+		     {}
+		],
+	
+		// 模块0通常用来当作hmr的代码插入，其他业务代码的模块id
+		一般以1开始
 
-	        module.bundle.Module = Module;
+		0: [
+      function(require, module, exports) {
+        var global = (1, eval)('this');
+        var OldModule = module.bundle.Module;
+        function Module() {
+          OldModule.call(this);
+          this.hot = {
+            accept: function(fn) {
+              this._acceptCallback = fn || function() {};
+            },
+            dispose: function(fn) {
+              this._disposeCallback = fn;
+            }
+          };
+        }
 
-	        if (!module.bundle.parent && typeof WebSocket !== 'undefined') {
-	          var ws = new WebSocket('ws://' + window.location.hostname + ':45564/');
-	          ws.onmessage = function(event) {
-	            var data = JSON.parse(event.data);
+        module.bundle.Module = Module;
 
-	            if (data.type === 'update') {
-	              data.assets.forEach(function(asset) {
-	                hmrApply(global.require, asset);
-	              });
+        if (!module.bundle.parent && typeof WebSocket !== 'undefined') {
+          var ws = new WebSocket('ws://' + window.location.hostname + ':45564/');
+          ws.onmessage = function(event) {
+            var data = JSON.parse(event.data);
 
-	              data.assets.forEach(function(asset) {
-	                if (!asset.isNew) {
-	                  hmrAccept(global.require, asset.id);
-	                }
-	              });
-	            }
+            if (data.type === 'update') {
+              data.assets.forEach(function(asset) {
+                hmrApply(global.require, asset);
+              });
 
-	            if (data.type === 'reload') {
-	              ws.close();
-	              ws.onclose = function() {
-	                window.location.reload();
-	              };
-	            }
+              data.assets.forEach(function(asset) {
+                if (!asset.isNew) {
+                  hmrAccept(global.require, asset.id);
+                }
+              });
+            }
 
-	            if (data.type === 'error-resolved') {
-	              console.log('[parcel] ✨ Error resolved');
-	            }
+            if (data.type === 'reload') {
+              ws.close();
+              ws.onclose = function() {
+                window.location.reload();
+              };
+            }
 
-	            if (data.type === 'error') {
-	              console.error('[parcel] 🚨  ' + data.error.message + '\n' + 'data.error.stack');
-	            }
-	          };
-	        }
+            if (data.type === 'error-resolved') {
+              console.log('[parcel] ✨ Error resolved');
+            }
 
-	        function getParents(bundle, id) {
-	          var modules = bundle.modules;
-	          if (!modules) {
-	            return [];
-	          }
+            if (data.type === 'error') {
+              console.error('[parcel] 🚨  ' + data.error.message + '\n' + 'data.error.stack');
+            }
+          };
+        }
 
-	          var parents = [];
-	          var k, d, dep;
+        function getParents(bundle, id) {
+          var modules = bundle.modules;
+          if (!modules) {
+            return [];
+          }
 
-	          for (k in modules) {
-	            for (d in modules[k][1]) {
-	              dep = modules[k][1][d];
-	              if (dep === id || (Array.isArray(dep) && dep[dep.length - 1] === id)) {
-	                parents.push(+k);
-	              }
-	            }
-	          }
+          var parents = [];
+          var k, d, dep;
 
-	          if (bundle.parent) {
-	            parents = parents.concat(getParents(bundle.parent, id));
-	          }
+          for (k in modules) {
+            for (d in modules[k][1]) {
+              dep = modules[k][1][d];
+              if (dep === id || (Array.isArray(dep) && dep[dep.length - 1] === id)) {
+                parents.push(+k);
+              }
+            }
+          }
 
-	          return parents;
-	        }
+          if (bundle.parent) {
+            parents = parents.concat(getParents(bundle.parent, id));
+          }
 
-	        function hmrApply(bundle, asset) {
-	          var modules = bundle.modules;
-	          if (!modules) {
-	            return;
-	          }
+          return parents;
+        }
 
-	          if (modules[asset.id] || !bundle.parent) {
-	            var fn = new Function('require', 'module', 'exports', asset.generated.js);
-	            asset.isNew = !modules[asset.id];
-	            modules[asset.id] = [fn, asset.deps];
-	          } else if (bundle.parent) {
-	            hmrApply(bundle.parent, asset);
-	          }
-	        }
+        function hmrApply(bundle, asset) {
+          var modules = bundle.modules;
+          if (!modules) {
+            return;
+          }
 
-	        function hmrAccept(bundle, id) {
-	          var modules = bundle.modules;
-	          if (!modules) {
-	            return;
-	          }
+          if (modules[asset.id] || !bundle.parent) {
+            var fn = new Function('require', 'module', 'exports', asset.generated.js);
+            asset.isNew = !modules[asset.id];
+            modules[asset.id] = [fn, asset.deps];
+          } else if (bundle.parent) {
+            hmrApply(bundle.parent, asset);
+          }
+        }
 
-	          if (!modules[id] && bundle.parent) {
-	            return hmrAccept(bundle.parent, id);
-	          }
+        function hmrAccept(bundle, id) {
+          var modules = bundle.modules;
+          if (!modules) {
+            return;
+          }
 
-	          var cached = bundle.cache[id];
-	          if (cached && cached.hot._disposeCallback) {
-	            cached.hot._disposeCallback();
-	          }
+          if (!modules[id] && bundle.parent) {
+            return hmrAccept(bundle.parent, id);
+          }
 
-	          delete bundle.cache[id];
-	          bundle(id);
+          var cached = bundle.cache[id];
+          if (cached && cached.hot._disposeCallback) {
+            cached.hot._disposeCallback();
+          }
 
-	          cached = bundle.cache[id];
-	          if (cached && cached.hot && cached.hot._acceptCallback) {
-	            cached.hot._acceptCallback();
-	            return true;
-	          }
+          delete bundle.cache[id];
+          bundle(id);
 
-	          return getParents(global.require, id).some(function(id) {
-	            return hmrAccept(global.require, id);
-	          });
-	        }
-	      },
-	      {}
-	    ]
-		},
+          cached = bundle.cache[id];
+          if (cached && cached.hot && cached.hot._acceptCallback) {
+            cached.hot._acceptCallback();
+            return true;
+          }
 
-		// cache
-		// 初始一般为一个空对象
-		{},
-		
-		// module entry
-		// 整个应用的入口，也是整个业务代码中最先执行的部分
-		[0, 2]
-	)
-	```	
+          return getParents(global.require, id).some(function(id) {
+            return hmrAccept(global.require, id);
+          });
+        }
+      },
+      {}
+    ]
+	},
+
+	// cache
+	// 初始一般为一个空对象
+	{},
+	
+	// module entry
+	// 整个应用的入口，也是整个业务代码中最先执行的部分
+	[0, 2]
+)
+```	
 
 9. 记录整个过程的打包时间，并输出打包的成功或失败的消息，
 并触发`buildEnd`事件，重置pending状态，整个打包至此结束。
+
+
+------------
 
 
 ##  更新流程
 
 
 ## Q&A
+
 
 -　如何收集各个资源中的依赖？
 
