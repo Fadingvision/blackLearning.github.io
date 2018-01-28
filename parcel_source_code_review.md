@@ -107,6 +107,16 @@ getSiblingBundle(type) {
 ### Parser
 > 资源打包解析类，规定了如何对各种资源进行解析
 
+
+__properties:__
+
+- `extensions`: 资源处理对象，记录各种后缀的资源应该用哪种对应的Asset类来进行实例化
+
+__methods:__
+
+- `findParser`: 通过文件的后缀名来从`extensions`中找到对应的Asset类
+- `getAsset`: 将找到的与文件吻合的Asset类进行实例化。
+
 ### Resolver
 > 资源路径解析类，如何对代码中引入的各种相对路径的资源路径进行解析，从而找到该模块的绝对路径。
 
@@ -158,10 +168,91 @@ react => /home/cxy/other_stuff/demos/parcel_demo/node_modules/react/index.js
 （4） 抛出 "not found"
 
 
+__methods:__
+
+`resolveInternal`:
+
+```js
+resolveInternal(filename, parent, resolver) {
+
+  // 优先从缓存中取，这对一些常用的模块，
+  // 例如react app，基本上每个模块中都有对react的依赖，
+  // 这时可以加快读取模块位置的速度
+
+  let key = this.getCacheKey(filename, parent);
+  if (this.cache.has(key)) {
+    return this.cache.get(key);
+  }
+
+  if (glob.hasMagic(filename)) {
+    return {path: path.resolve(path.dirname(parent), filename)};
+  }
+
+  // 将引用该模块的模块的后缀名放到优先级最高,
+  // 因为多数情况下是同类模块互相引用的
+
+  let extensions = Object.keys(this.options.extensions);
+  if (parent) {
+    const parentExt = path.extname(parent);
+    // parent's extension given high priority
+    extensions = [parentExt, ...extensions.filter(ext => ext !== parentExt)];
+  }
+
+  return resolver(filename, {
+    filename: parent, // require()调用源自哪里
+    paths: this.options.paths, // 当在node_modules没找到时额外的查找路径
+
+    // modules定义了一些特殊的模块查找规则,
+    // 例如node-libs-browser(https://github.com/webpack/node-libs-browser)
+    // 以及动态导入的模块,和热更新时用的css模块的loader路径
+
+    modules: builtins, 
+    extensions: extensions, // 按顺序搜索的文件扩展名数组
+
+    // 在向package.json中查找main字段之前转换package.json内容
+
+    packageFilter(pkg, pkgfile) {
+      // Expose the path to the package.json file
+      pkg.pkgfile = pkgfile;
+
+      // 由于一些库(例如d3.js)没有把库的入口文件放在main字段中, 
+      // 因此这里将module, jsnext:main的优先级提高
+      // 如果定义了这两个字段,则优先以这两个字段为准
+
+      const main = [pkg.module, pkg['jsnext:main']].find(
+        entry => typeof entry === 'string'
+      );
+
+      if (main) {
+        pkg.main = main;
+      }
+
+      return pkg;
+    }
+  });
+}
+```
+
+
 ### Packager
 > 打包组合类，用于将各个打包结果组合，并生成最后的输出文件。
 
-> 在 Parcel 中，一个 Packager 将多个 资源合并到一个最终生成的文件束中。此过程发生在主进程中，且在所有资源被处理及文件束树被创建之后。Packager 的注册是基于输出文件类型，并且用于生成这种文件类型的资源会被送到 packager 中去生成最后生成的输出文件。
+> 在 Parcel 中，一个 Packager 将多个资源(`assets`)合并到一个最终生成的文件束(`bundle`)中。此过程发生在主进程中，且在所有资源被处理及文件束树(`createBundleTree`)被创建之后。Packager 的注册是基于输出文件类型，并且用于生成这种文件类型的资源会被送到 packager 中去生成最后生成的输出文件。
+
+
+__properties:__
+
+- `bundle`: 此次用于输出的bundle实例,一个bundle实例输出一个文件.
+- `options`: bunlder的配置选项.
+
+__methods:__
+
+以JSPackager为例:
+
+- `setup`: 创建一个可持续写入文件的node stream
+- `start`: 开始写入一个文件之前的预处理, 例如js包插入模块定义代码(`builtins/prelude.js`)
+- `addAsset`: 将一个asset的代码写入到打包文件中,即将asset中之前generate的代码`asset.generated.js`按照之前模块的定义规则组合后,插入文件流中.
+- `end`: 后处理,例如js包中插入hmr代码(`builtins/hmr-runtime.js`), 关闭文件流等
 
 ---------
 
@@ -555,7 +646,7 @@ require = (function(modules, cache, entry) {
 
 - 不同类型的资源怎么做不同的处理和转换？(asset.parse, asset.transform)
 
-- 如何实现动态导入？(dep.dynamic)
+- 什么是动态导入, 如何实现动态导入？(dep.dynamic)
 
 - 如何处理重复资源打包的问题？(findCommonAncestor)
 
@@ -565,7 +656,7 @@ require = (function(modules, cache, entry) {
 
 - 如何监听打包资源的变化？(FSWatcher, onChange)
 
-- 如何利用webSocket 实现HMR功能？ (HMRServer, hmr-runtime)
+- 如何利用webSocket 实现HMR功能？ (HMRServer, hmr-runtime.js)
 
 - 如何利用缓存提高打包速度？(Cache)
 
