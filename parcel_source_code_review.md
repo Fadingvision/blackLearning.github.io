@@ -38,10 +38,10 @@ __methods:__
 
 - `load`: 从原始文件中读取文件内容。
 - `collectDependencies`:　收集依赖`collectDependencies`，留给子类实现
-- `parse`: 解析处理代码，不同类型的资源解析处理方式不同，例如html字符串用`posthtml-parser`, js资源用`babylon.parse`来解析，因此一般留给子类实现
-- `pretransform`: 预处理，比如js资源会用babel()进行转换，留给子类实现
-- `transform`: 资源处理，留给子类实现
-- `generate`: 处理转换完毕之后，生成最后的打包代码字符串。格式一般为`{　[type]: code　}`，如果子类没有实现此方法，默认为原始的字符串，
+- `parse`: 资源解析，不同类型的资源解析处理方式不同，例如html字符串用`posthtml-parser`, js资源用`babylon.parse`来解析，因此一般留给子类实现
+- `pretransform`: 资源预转换，比如js资源会用babel()进行转换，留给子类实现
+- `transform`: 资源转换，留给子类实现
+- `generate`: 资源生成，生成最后的打包代码字符串。格式一般为`{　[type]: code　}`，如果子类没有实现此方法，默认为原始的字符串，
 - `generateHash`: 为该资源生成hash字符串。
 
 - `invalidate`: 重置asset的状态
@@ -305,10 +305,10 @@ __methods:__
 
 		`getDependencies`:　这里主要对资源字符串进行解析，例如html字符串用`posthtml-parser`, js资源用`babylon.parse`来解析。然后收集依赖`collectDependencies`，具体操作稍后分析。
 
-		`transform`: 资源处理, 具体操作稍后分析。
+		`transform`: 资源转换步骤接收 AST并对其进行遍历，在此过程中对节点进行添加、更新及移除等操作。 
 
-		`generate`: 处理转换完毕之后，生成最后的打包代码字符串。
-		格式一般为{`[type]`: `code`}
+		`generate`: 代码生成步骤把最终（经过一系列转换之后）的 AST 转换成字符串形式的代码，同时还会创建源码映射（source maps）。代码生成其实很简单：深度优先遍历整个 AST，然后构建可以表示转换后代码的字符串。
+		生成最后的代码格式一般为{`[type]`: `code`}
 
 		`generateHash`: 为该资源生成hash字符串。
 
@@ -644,7 +644,83 @@ require = (function(modules, cache, entry) {
 
 - 如何收集各个资源中的依赖？(asset.collectDependencies)
 
+
+__JSAsset__: 
+
+1. 利用`babylon.parse`将代码字符串转换为抽象语法树。
+
+[babylon](https://github.com/babel/babylon)
+
+2. collectDependencies
+
+由于收集依赖时的遍历并不需要对代码进行转换，所以这里使用[Babel-travserse](https://github.com/babel/babel/tree/master/packages/babel-traverse)的轻量版本
+[babylon-walk](https://github.com/pugjs/babylon-walk)对js代码进行遍历。
+
+```js
+traverseFast(visitor) {
+  return walk.simple(this.ast, visitor, this);
+}
+
+collectDependencies() {
+  this.traverseFast(collectDependencies);
+}
+```
+
+Visitors（访问者）
+[Babel-handlebook](https://github.com/thejameskyle/babel-handbook/blob/master/translations/zh-Hans/plugin-handbook.md)
+
+当我们谈及“进入”一个节点，实际上是说我们在访问它们， 之所以使用这样的术语是因为有一个访问者模式（visitor）的概念。.
+
+访问者是一个用于 AST 遍历的跨语言的模式。 简单的说它们就是一个对象，定义了用于在一个树状结构中获取具体节点的方法。 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 - 不同类型的资源怎么做不同的处理和转换？(asset.parse, asset.transform)
+
+js: babel
 
 - 什么是动态导入, 如何实现动态导入？(dep.dynamic)
 
