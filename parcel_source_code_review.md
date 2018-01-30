@@ -642,7 +642,7 @@ require = (function(modules, cache, entry) {
 ## Q&A
 
 
-- 如何收集各个资源中的依赖？(asset.collectDependencies)
+### 如何收集各个资源中的依赖？(asset.collectDependencies)
 
 
 __JSAsset__: 
@@ -1003,11 +1003,11 @@ addURLDependency(url, from = this.name, opts) {
 
 __注意:__ 依赖收集的过程中,是不会判断是否是重复资源的问题的, 资源去重的功能会在createBundleTree的时候, 也就是生成最终的bundle树的时候进行判断.
 
-- 不同类型的资源怎么做不同的处理和转换？(asset.parse, asset.transform)
+### 不同类型的资源怎么做不同的处理和转换？(asset.parse, asset.transform)
 
 js: babel
 
-- 什么是动态导入, 如何实现动态导入？(dep.dynamic)
+### 什么是动态导入, 如何实现动态导入？(dep.dynamic)
 
 一个动态导入的资源, 也就是说会在代码执行的过程中按需通过http的方式动态的被加载, 而不是一开始编译的时候就被加载到了源码中.
 
@@ -1020,21 +1020,21 @@ js: babel
 所以只需要将动态导入的资源新生成一个bundle束, 从而打包出新的文件, 再从源码中替换掉对应的资源, 这样代码执行的时候就可以加载到对应的打包过后的动态资源. 
 
 
-- 如何处理Web Worker, Service Worker, import()引入的依赖？ (assset.addURLDependency)
+### 如何处理Web Worker, Service Worker, import()引入的依赖？ (assset.addURLDependency)
 
-- 如何处理重复资源打包的问题？(findCommonAncestor)
+### 如何处理重复资源打包的问题？(findCommonAncestor)
 
-- 如何处理不同模块系统的代码，并生成统一的模块依赖方式？(babel, prelude.js)
+### 如何处理不同模块系统的代码，并生成统一的模块依赖方式？(babel, prelude.js)
 
-- 如何处理各种非Js资源? (Asset的各种子类实现)
+### 如何处理各种非Js资源? (Asset的各种子类实现)
 
-- 如何监听打包资源的变化？(FSWatcher, onChange)
+### 如何监听打包资源的变化？(FSWatcher, onChange)
 
-- 如何利用webSocket 实现HMR功能？ (HMRServer, hmr-runtime.js)
+### 如何利用webSocket 实现HMR功能？ (HMRServer, hmr-runtime.js)
 
-- 如何利用缓存提高打包速度？(Cache)
+### 如何利用缓存提高打包速度？(Cache)
 
-- 如何自定义一个Parcel-plugin,或者新增一个资源类型处理的类？
+### 如何自定义一个Parcel-plugin,或者新增一个资源类型处理的类？
 
 
 
