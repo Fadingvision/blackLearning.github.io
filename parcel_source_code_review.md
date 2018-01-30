@@ -650,10 +650,11 @@ __JSAsset__:
 1. 利用`babylon.parse`将代码字符串转换为抽象语法树。
 
 [babylon](https://github.com/babel/babylon)
+[Ast树形可视化](http://astexplorer.net/)
 
 2. collectDependencies
 
-由于收集依赖时的遍历并不需要对代码进行转换，所以这里使用[Babel-travserse](https://github.com/babel/babel/tree/master/packages/babel-traverse)的轻量版本
+由于收集依赖时的遍历并不需要对代码进行转换，所以这里使用[Babel-travserse](https://github.com/babel/babel/tree/master/packages/babel-traverse)的轻量快速版本
 [babylon-walk](https://github.com/pugjs/babylon-walk)对js代码进行遍历。
 
 ```js
@@ -667,22 +668,250 @@ collectDependencies() {
 ```
 
 Visitors（访问者）
+
 [Babel-handlebook](https://github.com/thejameskyle/babel-handbook/blob/master/translations/zh-Hans/plugin-handbook.md)
 
-当我们谈及“进入”一个节点，实际上是说我们在访问它们， 之所以使用这样的术语是因为有一个访问者模式（visitor）的概念。.
+> 当我们谈及“进入”一个节点，实际上是说我们在访问它们， 之所以使用这样的术语是因为有一个访问者模式（visitor）的概念。.
 
-访问者是一个用于 AST 遍历的跨语言的模式。 简单的说它们就是一个对象，定义了用于在一个树状结构中获取具体节点的方法。 
-
-
+> 访问者是一个用于 AST 遍历的跨语言的模式。 简单的说它们就是一个对象，定义了用于在一个树状结构中获取具体节点的方法。 
 
 
+```js
+const MyVisitor = {
+  Identifier() {
+    console.log("Called!");
+  }
+};
+```
+
+> 这是一个简单的访问者，把它用于遍历中时，每当在树中遇见一个 Identifier 的时候会调用 Identifier() 方法，这些调用都发生在进入节点时，不过有时候我们也可以在退出时调用访问者方法。
 
 
+在看用于收集依赖的visitor之前，先了解下ES6 module和nodejs的模块系统的几种导入导出方式以及对应在抽象语法树中代表的declaration类型：
+
+```js
+// ImportDeclaration
+import { stat, exists, readFile } from 'fs';
+
+// ExportNamedDeclaration with node.source = null;
+export var year = 1958;
+
+// ExportNamedDeclaration with node.source = null;
+export default function () {
+  console.log('foo');
+}
+
+// ExportNamedDeclaration with node.source.value = 'my_module';
+export { foo, bar } from 'my_module';
+
+// CallExpression with node.Callee.name is require;
+// CallExpression with node.Callee.arguments[0] is the 'react';
+import('react').then(...)
+
+// CallExpression with node.Callee.name is require;
+// CallExpression with node.Callee.arguments[0] is the 'react';
+var react = require('react');
+```
+
+除了上述这些依赖引入方式之外，还有两种比较特殊的方式：
+
+```js
+// web Worker
+new Worker('sw.js')
+
+// service worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw-test/sw.js', { scope: '/sw-test/' }).then(function(reg) {
+    // registration worked
+    console.log('Registration succeeded. Scope is ' + reg.scope);
+  }).catch(function(error) {
+    // registration failed
+    console.log('Registration failed with ' + error);
+  });
+}
+```
 
 
+访问JS资源时的Visitor，具体的依赖收集方法就会在遍历到相应的依赖引入的时候执行。
 
+```js
+module.exports = {
+  ImportDeclaration(node, asset) {
+    asset.isES6Module = true;
+    addDependency(asset, node.source);
+  },
 
+  ExportNamedDeclaration(node, asset) {
+    asset.isES6Module = true;
+    if (node.source) {
+      addDependency(asset, node.source);
+    }
+  },
 
+  ExportAllDeclaration(node, asset) {
+    asset.isES6Module = true;
+    addDependency(asset, node.source);
+  },
+
+  ExportDefaultDeclaration(node, asset) {
+    asset.isES6Module = true;
+  },
+
+  CallExpression(node, asset) {
+    let {callee, arguments: args} = node;
+
+    let isRequire =
+      types.isIdentifier(callee) &&
+      callee.name === 'require' &&
+      args.length === 1 &&
+      types.isStringLiteral(args[0]);
+
+    if (isRequire) {
+      addDependency(asset, args[0]);
+      return;
+    }
+
+    let isDynamicImport =
+      callee.type === 'Import' &&
+      args.length === 1 &&
+      types.isStringLiteral(args[0]);
+
+    if (isDynamicImport) {
+      asset.addDependency('_bundle_loader');
+      addDependency(asset, args[0], {dynamic: true});
+
+      node.callee = requireTemplate().expression;
+      node.arguments[0] = argTemplate({MODULE: args[0]}).expression;
+      asset.isAstDirty = true;
+      return;
+    }
+
+    const isRegisterServiceWorker =
+      types.isStringLiteral(args[0]) &&
+      matchesPattern(callee, serviceWorkerPattern);
+
+    if (isRegisterServiceWorker) {
+      addURLDependency(asset, args[0]);
+      return;
+    }
+  },
+
+  NewExpression(node, asset) {
+    const {callee, arguments: args} = node;
+
+    const isWebWorker =
+      callee.type === 'Identifier' &&
+      callee.name === 'Worker' &&
+      args.length === 1 &&
+      types.isStringLiteral(args[0]);
+
+    if (isWebWorker) {
+      addURLDependency(asset, args[0]);
+      return;
+    }
+  }
+};
+```
+
+__CSSAsset__:
+
+css中的依赖一般为其他css（关键字：@import）, 以及引入的图片(关键字： url)。
+
+首先是`@import`规则：
+
+@import url list-of-media-queries; 
+
+>url
+>
+>是一个表示要引入资源位置的 <string> 或者 <uri> 。 这个 URL 可以是绝对路径或者相对路径。 要注意的是这个 URL 不需要指明一个文件； 可以只指明包名，然后合适的文件会被自动选择 (e.g. chrome://communicator/skin/).
+>
+>list-of-media-queriers
+>
+>是一个逗号分隔的 媒体查询 条件列表，决定通过URL引入的 CSS 规则 在什么条件下应用。如果浏览器不支持列表中的任何一条媒体查询条件，就不会引入URL指明的CSS文件。
+
+其次是`url(..asset)`
+
+```js
+
+// 同JS类似， 首先利用postcss.parse方法构建css的AST树
+let root = postcss.parse(code, {from: this.name, to: this.name});
+
+然后主要利用[postcss-value-parser](https://github.com/TrySound/postcss-value-parser)去解析所有的属性值。
+
+collectDependencies() {
+  // 遍历树上的每条规则
+  // 例如 width: 30px 为一条rule，这里过滤出所有import类型的rule
+  this.ast.root.walkAtRules('import', rule => {
+	// 用postcss-value-parser解析成节点树
+    let params = valueParser(rule.params).nodes;
+    let [name, ...media] = params;
+    let dep;
+
+    // 如果是import xxx.css
+    if (name.type === 'string') {
+      dep = name.value;
+    // 如果是import url(xxx.css)
+    } else if (
+      name.type === 'function' &&
+      name.value === 'url' &&
+      name.nodes.length
+    ) {
+      dep = name.nodes[0].value;
+    }
+
+    if (!dep) {
+      throw new Error('Could not find import name for ' + rule);
+    }
+	
+	// 如果是网络资源，则不计入依赖
+    if (PROTOCOL_RE.test(dep)) {
+      return;
+    }
+
+    media = valueParser.stringify(media).trim();
+    // 记录这条依赖的行数，media规则，
+    // 这种依赖是静态的，直接在编译阶段输出的。
+    this.addDependency(dep, {media, loc: rule.source.start});
+	
+	  // 移除这条规则
+    rule.remove();
+    // ast已经被改动过，将dirty flag置为true
+    this.ast.dirty = true;
+  });
+
+  // 遍历所有的属性值
+  this.ast.root.walkDecls(decl => {
+  	// 过滤掉网络资源（类似http(s)之类开头的资源）
+    if (URL_RE.test(decl.value)) {
+      let parsed = valueParser(decl.value);
+      let dirty = false;
+
+      parsed.walk(node => {
+        if (
+          node.type === 'function' &&
+          node.value === 'url' &&
+          node.nodes.length
+        ) {
+          let url = this.addURLDependency(node.nodes[0].value, {
+            loc: decl.source.start
+          });
+          // 经过处理后的资源url是否变化
+          dirty = node.nodes[0].value !== url;
+
+          // 将本地的相对资源经过处理后替换掉原url
+          node.nodes[0].value = url;
+        }
+      });
+
+      if (dirty) {
+        // 如果变化了，说明ast被改动了
+        decl.value = parsed.toString();
+        this.ast.dirty = true;
+      }
+    }
+  });
+}
+```
 
 
 
@@ -722,7 +951,9 @@ Visitors（访问者）
 
 js: babel
 
-- 什么是动态导入, 如何实现动态导入？(dep.dynamic)
+- 什么是动态导入, 如何收集动态导入的依赖，如何实现动态导入？(dep.dynamic,  addURLDependency)
+
+- 如何处理Web Worker, Service Worker引入的依赖？ (assset.addURLDependency)
 
 - 如何处理重复资源打包的问题？(findCommonAncestor)
 
