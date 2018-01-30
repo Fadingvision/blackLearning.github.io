@@ -863,14 +863,13 @@ collectDependencies() {
       throw new Error('Could not find import name for ' + rule);
     }
 	
-	// 如果是网络资源，则不计入依赖
+	  // 如果是网络资源，则不计入依赖
     if (PROTOCOL_RE.test(dep)) {
       return;
     }
 
     media = valueParser.stringify(media).trim();
     // 记录这条依赖的行数，media规则，
-    // 这种依赖是静态的，直接在编译阶段输出的。
     this.addDependency(dep, {media, loc: rule.source.start});
 	
 	  // 移除这条规则
@@ -914,46 +913,114 @@ collectDependencies() {
 ```
 
 
+__HTMLAsset__:
 
 
+利用`posthtml-parser`来生成AST
 
 
+```js
 
+const ATTRS = {
+  src: [
+    'script',
+    'img',
+    'audio',
+    'video',
+    'source',
+    'track',
+    'iframe',
+    'embed'
+  ],
+  href: ['link', 'a'],
+  poster: ['video']
+};
 
+collectDependencies() {
+  this.ast.walk(node => {
+    if (node.attrs) {
+      for (let attr in node.attrs) {
+        let elements = ATTRS[attr];
 
+        // 如果Html中有src, href或者post属性
+        // 并且这个节点属于上述节点之一, 则说明有依赖存在
 
+        if (elements && elements.includes(node.tag)) {
 
+          // 加入依赖列表, 生成该资源最后的打包路径
+          let assetPath = this.addURLDependency(node.attrs[attr]);
 
+          // 如果生成的资源路径不是http资源, 则用publicURL(默认为/dist)将其拼接起来,
+          // 以便在server中的静态资源中可以访问到
 
+          if (!isURL(assetPath)) {
+            assetPath = urlJoin(this.options.publicURL, assetPath);
+          }
 
+          // 替换源码
+          node.attrs[attr] = assetPath;
+          this.isAstDirty = true;
+        }
+      }
+    }
 
+    return node;
+  });
+}
 
+// Asset.js #64
+addURLDependency(url, from = this.name, opts) {
+    // 如果该资源路径是一个网络资源,则直接返回该资源
+    if (!url || isURL(url)) {
+      return url;
+    }
 
+    if (typeof from === 'object') {
+      opts = from;
+      from = this.name;
+    }
 
+    // 从该资源的相对路径以及引用该资源的资源的绝对路径推算出该资源的绝对路径
 
+    let resolved = path.resolve(path.dirname(from), url).replace(/[?#].*$/, '');
 
+    // 转为根据当前目录的相对路径之后, 存入依赖数组中.
+    // 通过以下方式引入的资源:
+    // (html中引入的相对路径资源, css中url()引入的相对路径资源, js中的web Worker, service worker, import()引入的相对路径资源)
+    // 都设为dynamic: true
 
+    this.addDependency(
+      './' + path.relative(path.dirname(this.name), resolved),
+      Object.assign({dynamic: true}, opts)
+    );
+    
+    // 返回hash之后的资源名称, 也是打包之后的资源名称, 从而在源代码中进行替换
+    return this.options.parser
+      .getAsset(resolved, this.package, this.options)
+      .generateBundleName();
+  }
+```
 
-
-
-
-
-
-
-
-
-
-
-
-
+__注意:__ 依赖收集的过程中,是不会判断是否是重复资源的问题的, 资源去重的功能会在createBundleTree的时候, 也就是生成最终的bundle树的时候进行判断.
 
 - 不同类型的资源怎么做不同的处理和转换？(asset.parse, asset.transform)
 
 js: babel
 
-- 什么是动态导入, 如何收集动态导入的依赖，如何实现动态导入？(dep.dynamic,  addURLDependency)
+- 什么是动态导入, 如何实现动态导入？(dep.dynamic)
 
-- 如何处理Web Worker, Service Worker引入的依赖？ (assset.addURLDependency)
+一个动态导入的资源, 也就是说会在代码执行的过程中按需通过http的方式动态的被加载, 而不是一开始编译的时候就被加载到了源码中.
+
+在parcel中,html中引入的相对路径资源, css中url()引入的相对路径资源, js中的web Worker, service worker, import()引入的相对路径资源,
+这些资源依赖都被设为`dynamic: true`;
+
+纵观源码, 一个依赖是否是dynamic的, 决定了它是否会创建一个新的bundle束,
+从而决定了最终是否会被生成一个新的文件.
+
+所以只需要将动态导入的资源新生成一个bundle束, 从而打包出新的文件, 再从源码中替换掉对应的资源, 这样代码执行的时候就可以加载到对应的打包过后的动态资源. 
+
+
+- 如何处理Web Worker, Service Worker, import()引入的依赖？ (assset.addURLDependency)
 
 - 如何处理重复资源打包的问题？(findCommonAncestor)
 
