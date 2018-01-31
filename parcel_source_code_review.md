@@ -1022,6 +1022,184 @@ js: babel
 
 ### 如何处理Web Worker, Service Worker, import()引入的依赖？ (assset.addURLDependency)
 
+Web Worker, Service Worker的处理比较简单, 只需要将原来的资源路径替换成打包后的资源路径.
+
+import: 
+
+如果碰到Import()导入的资源, 直接将_bundle_loader加入其依赖列表,
+根据前面resolver的模块路径解析中对特殊模块的处理, 遇到_bundle_loader的时候会解析成`builtins/bundle-loader.js`这个资源, 这个资源也是专门用来处理动态js, css的引入.
+
+```js
+if (isDynamicImport) {
+  asset.addDependency('_bundle_loader');
+
+  addDependency(asset, args[0], {dynamic: true});
+
+  node.callee = requireTemplate().expression;
+  node.arguments[0] = argTemplate({MODULE: args[0]}).expression;
+  asset.isAstDirty = true;
+  return;
+}
+```
+
+根据上面的代码, 在ast中如果遇到 `import('./dialog.js').then(module => ...)`这段动态引入的代码, 会被直接替换为`require('_bundle_loader')(require.resolve('./dialog.js').then(module => ...)`;
+
+
+通过`prelude.js(#51)`可以知道`require.resolve('./dialog.js')`实际上得到的是资源`./dialog.js`的资源id. 这种id的格式一般为数字, 
+
+而这种动态资源由于设置了`dynamic: true`, 一般会在打包的时候单独生成一个文件, 所以处理资源的时候做了单独处理.
+
+`JSPackager.js(#42-#55)`
+
+```js
+// 对于动态资源, 会将动态资源的打包文件名插入资源数组中.
+if (dep.dynamic && this.bundle.childBundles.has(mod.parentBundle)) {
+  let bundles = [path.basename(mod.parentBundle.name)];
+
+  // 如果该动态资源引入了其他类型的资源, 例如js中引入了css文件.
+  // 需要将这些其他的subilingBundles生成的文件名一起加入依赖数组中,在引入该动态js的同时, 需要把这些例如css样式文件也跟随动态资源一起加载进来.
+
+  for (let child of mod.parentBundle.siblingBundles.values()) {
+    if (!child.isEmpty) {
+      bundles.push(path.basename(child.name));
+    }
+  }
+  
+  // 保障最后一个元素一定是该动态资源的id
+  bundles.push(mod.id);
+  deps[dep.name] = bundles;
+} else {
+  deps[dep.name] = this.dedupe.get(mod.generated.js) || mod.id;
+}
+```
+
+最后得到的打包资源数组为:
+`[md5(dynamicAsset).js, md5(cssWithDynamicAsset).css, ..., assetId]`, 由打包之后的文件名和该模块的id所组成.
+
+
+
+```
+
+// bundle-loader.js
+
+var getBundleURL = require('./bundle-url').getBundleURL;
+
+
+// bundles: `[md5(dynamicAsset).js, md5(cssWithDynamicAsset).css, ..., assetId]`
+
+function loadBundles(bundles) {
+
+  var id = Array.isArray(bundles) ? bundles[bundles.length - 1] : bundles;
+  
+  // 因为可能存在某个资源也通过普通的方式多次引入, 或者已经被引入过了, 所以有可能已经加载完毕了.
+  // 因此首先尝试在自身打包束中去查找该模块,
+
+  try {
+    return Promise.resolve(require(id));
+  } catch (err) {
+
+    // 如果没有找到该模块, 则尝试通过模块打包后的文件名新建script标签动态的引入该模块,
+
+    if (err.code === 'MODULE_NOT_FOUND') {
+      // 这里在promise上包装一个一层,保障在执行import()的then方法的时候才会真正的去网络加载对应的资源.
+
+      return new LazyPromise(function (resolve, reject) {
+        Promise.all(bundles.slice(0, -1).map(loadBundle)).then(function () {
+          return require(id);
+        }).then(resolve, reject);
+      });
+    }
+
+    throw err;
+  }
+}
+
+module.exports = exports = loadBundles;
+
+var bundles = {};
+var bundleLoaders = {
+  js: loadJSBundle,
+  css: loadCSSBundle
+};
+
+function loadBundle(bundle) {
+  if (bundles[bundle]) {
+    return bundles[bundle];
+  }
+  
+  // TODO: 如何根据文件名找到该文件准确的网络路径?
+
+  var type = bundle.match(/\.(.+)$/)[1].toLowerCase();
+  var bundleLoader = bundleLoaders[type];
+  if (bundleLoader) {
+    return bundles[bundle] = bundleLoader(getBundleURL() + bundle);
+  }
+}
+
+// 通过网络加载对应的Js , css资源
+
+function loadJSBundle(bundle) {
+  return new Promise(function (resolve, reject) {
+    var script = document.createElement('script');
+    script.async = true;
+    script.type = 'text/javascript';
+    script.charset = 'utf-8';
+    script.src = bundle;
+    script.onerror = function (e) {
+      script.onerror = script.onload = null;
+      reject(e);
+    };
+
+    script.onload = function () {
+      script.onerror = script.onload = null;
+      resolve();
+    };
+
+    document.getElementsByTagName('head')[0].appendChild(script);
+  });
+}
+
+function loadCSSBundle(bundle) {
+  return new Promise(function (resolve, reject) {
+    var link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = bundle;
+    link.onerror = function (e) {
+      link.onerror = link.onload = null;
+      reject(e);
+    };
+
+    link.onload = function () {
+      link.onerror = link.onload = null;
+      resolve();
+    };
+
+    document.getElementsByTagName('head')[0].appendChild(link);
+  });
+}
+
+// LazyPromise保障executor在then方法调用之后才会执行, 而并不是新建promise实例的时候执行.
+
+function LazyPromise(executor) {
+  this.executor = executor;
+  this.promise = null;
+}
+
+LazyPromise.prototype.then = function (onSuccess, onError) {
+  return this.promise || (this.promise = new Promise(this.executor).then(onSuccess, onError));
+};
+
+LazyPromise.prototype.catch = function (onError) {
+  return this.promise || (this.promise = new Promise(this.executor).catch(onError));
+};
+
+```
+
+
+`TODO`: 如何解决动态资源二次重复加载的问题??
+
+
+
 ### 如何处理重复资源打包的问题？(findCommonAncestor)
 
 ### 如何处理不同模块系统的代码，并生成统一的模块依赖方式？(babel, prelude.js)
