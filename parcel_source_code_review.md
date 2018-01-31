@@ -204,7 +204,7 @@ resolveInternal(filename, parent, resolver) {
 
     // modules定义了一些特殊的模块查找规则,
     // 例如node-libs-browser(https://github.com/webpack/node-libs-browser)
-    // 以及动态导入的模块,和热更新时用的css模块的loader路径
+    // 以及动态导入的模块(bundle-loader),和热更新时用的css模块的loader路径
 
     modules: builtins, 
     extensions: extensions, // 按顺序搜索的文件扩展名数组
