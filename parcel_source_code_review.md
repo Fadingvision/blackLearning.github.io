@@ -1219,14 +1219,14 @@ LazyPromise.prototype.catch = function (onError) {
 
 ## The good things you can learn through the code-review 
 
-### 业务层面：
+###业务层面：
 
 1. 熟悉工具或框架的使用，API.
 2. 对使用过程中出现的问题能够快速的debug.
 3. 对于工具深度的性能优化有更深的了解。
 
 
-###　技术层面：
+###技术层面：
 
 1. 代码的风格，命名，注释，设计模式，编程范式，小技巧的使用
 2. 平时不容易用到的技术的了解和熟悉（比如parcel的websocket, hmr, 缓存）
