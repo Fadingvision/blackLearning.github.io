@@ -1078,7 +1078,7 @@ if (dep.dynamic && this.bundle.childBundles.has(mod.parentBundle)) {
 
 
 
-```
+```js
 
 // bundle-loader.js
 
