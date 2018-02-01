@@ -1024,7 +1024,7 @@ js: babel
 
 Web Worker, Service Worker的处理比较简单, 只需要将原来的资源路径替换成打包后的资源路径.
 
-import: 
+__Import()__: 
 
 如果碰到Import()导入的资源, 直接将_bundle_loader加入其依赖列表,
 根据前面resolver的模块路径解析中对特殊模块的处理, 遇到_bundle_loader的时候会解析成`builtins/bundle-loader.js`这个资源, 这个资源也是专门用来处理动态js, css的引入.
@@ -1043,7 +1043,6 @@ if (isDynamicImport) {
 ```
 
 根据上面的代码, 在ast中如果遇到 `import('./dialog.js').then(module => ...)`这段动态引入的代码, 会被直接替换为`require('_bundle_loader')(require.resolve('./dialog.js').then(module => ...)`;
-
 
 通过`prelude.js(#51)`可以知道`require.resolve('./dialog.js')`实际上得到的是资源`./dialog.js`的资源id. 这种id的格式一般为数字, 
 
@@ -1195,14 +1194,86 @@ LazyPromise.prototype.catch = function (onError) {
 
 ```
 
+### 如何处理不同模块系统的代码，并生成统一的模块依赖方式？(babel, prelude.js)
 
-`TODO`: 如何解决动态资源二次重复加载的问题??
 
+```js
+// modules are defined as an array
+// [ module function, map of requires ]
+//
+// map of requires is short require name -> numeric require
+//
+// anything defined in a previous bundle is accessed via the
+// orig method which is the require for previous bundles
 
+// eslint-disable-next-line no-global-assign
+require = (function (modules, cache, entry) {
+  // Save the require from previous bundle to this closure if any
+  var previousRequire = typeof require === "function" && require;
+
+  function newRequire(name, jumped) {
+    if (!cache[name]) {
+      if (!modules[name]) {
+        // if we cannot find the module within our internal map or
+        // cache jump to the current global require ie. the last bundle
+        // that was added to the page.
+        var currentRequire = typeof require === "function" && require;
+        if (!jumped && currentRequire) {
+          return currentRequire(name, true);
+        }
+
+        // If there are other bundles on this page the require from the
+        // previous one is saved to 'previousRequire'. Repeat this as
+        // many times as there are bundles until the module is found or
+        // we exhaust the require chain.
+        if (previousRequire) {
+          return previousRequire(name, true);
+        }
+
+        var err = new Error('Cannot find module \'' + name + '\'');
+        err.code = 'MODULE_NOT_FOUND';
+        throw err;
+      }
+      
+      localRequire.resolve = resolve;
+
+      var module = cache[name] = new newRequire.Module;
+
+      modules[name][0].call(module.exports, localRequire, module, module.exports);
+    }
+
+    return cache[name].exports;
+
+    function localRequire(x){
+      return newRequire(localRequire.resolve(x));
+    }
+
+    function resolve(x){
+      return modules[name][1][x] || x;
+    }
+  }
+
+  function Module() {
+    this.bundle = newRequire;
+    this.exports = {};
+  }
+
+  newRequire.Module = Module;
+  newRequire.modules = modules;
+  newRequire.cache = cache;
+  newRequire.parent = previousRequire;
+
+  for (var i = 0; i < entry.length; i++) {
+    newRequire(entry[i]);
+  }
+
+  // Override the current require with this new one
+  return newRequire;
+})(modules, cache, entry)
+
+```
 
 ### 如何处理重复资源打包的问题？(findCommonAncestor)
-
-### 如何处理不同模块系统的代码，并生成统一的模块依赖方式？(babel, prelude.js)
 
 ### 如何处理各种非Js资源? (Asset的各种子类实现)
 
@@ -1219,14 +1290,14 @@ LazyPromise.prototype.catch = function (onError) {
 
 ## The good things you can learn through the code-review 
 
-###业务层面：
+### 业务层面：
 
 1. 熟悉工具或框架的使用，API.
 2. 对使用过程中出现的问题能够快速的debug.
 3. 对于工具深度的性能优化有更深的了解。
 
 
-###技术层面：
+### 技术层面：
 
 1. 代码的风格，命名，注释，设计模式，编程范式，小技巧的使用
 2. 平时不容易用到的技术的了解和熟悉（比如parcel的websocket, hmr, 缓存）
