@@ -1100,6 +1100,7 @@ function loadBundles(bundles) {
       // 这里在promise上包装一个一层,保障在执行import()的then方法的时候才会真正的去网络加载对应的资源.
 
       return new LazyPromise(function (resolve, reject) {
+        // 在模块加载完之后再次去尝试require该模块。
         Promise.all(bundles.slice(0, -1).map(loadBundle)).then(function () {
           return require(id);
         }).then(resolve, reject);
@@ -1191,7 +1192,20 @@ LazyPromise.prototype.catch = function (onError) {
 
 ```
 
-###  如何实现一个前端模块机制, 如何处理不同模块系统的代码，并将其混入这个自有的模块机制？(babel, prelude.js)
+###  如何实现一个前端模块加载器, 如何处理不同模块系统的代码，并将其混入这个自有的模块机制？(babel, prelude.js)
+
+CommonJS规范的主要内容：
+
+模块必须通过 module.exports 导出对外的变量或接口，通过 require() 来导入其他模块的输出到当前模块作用域中。
+
+CommonJS模块的特点：
+
+（1）所有代码运行在当前模块作用域中，不会污染全局作用域
+
+（2）模块同步加载，根据代码中出现的顺序依次加载
+
+（3）模块可以多次加载，但是只会在第一次加载时运行一次，然后运行结果就被缓存了，以后再加载，就直接读取缓存结果。要想让模块再次运行，必须清除缓存。
+
 
 es6的模块通通被转成commonJs模块处理,
 下面是经过babel的插件`babel-plugin-transform-es2015-modules-commonjs`转换的结果.
@@ -1232,9 +1246,23 @@ __require__
 __exports__
 每个模块中还有一个自由变量exports，它是一个对象，模块对外输出的API就绑定在这个对象上。而且exports是模块对外输出API的唯一途径。
 
+首先，exports和module.exports都是引用类型的变量，而且这两个对象指向同一块内存地址。在node中，二者一开始都是指向一个空对象的.
+
+其次，exports对象是通过形参的方式传入的，直接赋值形参会改变形参的引用，但是并不能改变作用域外的值。
+
+__module__
+根据CommonJS规范，每一个文件就是一个模块，在每个模块中，都会有一个module对象，这个对象就指向当前的模块。module对象具有以下属性：
+
+（1）id：当前模块的bi
+（2）exports：表示当前模块暴露给外部的值
+（3）parent： 是一个对象，表示调用当前模块的模块
+（4）children：是一个对象，表示当前模块调用的模块
+（5）filename：模块的绝对路径
+（6）paths：从当前文件目录开始查找node_modules目录；然后依次进入父目录，查找父目录下的node_modules目录；依次迭代，直到根目录下的node_modules目录
+（7）loaded：一个布尔值，表示当前模块是否已经被完全加载
+
 
 下面看一看如何实现这些关键字:
-
 
 首先在源码中的一个个以文件区分的模块, 经过我们的编译之后
 被保存在了modules这个对象中. 
@@ -1246,6 +1274,9 @@ modules的大体结构是这样的.
   moduleId: [
     // 模块
     function (require, module, module.exports) {
+
+      // module source code after transformed by babel...
+
       'use strict';
 
       Object.defineProperty(exports, "__esModule", {
@@ -1271,12 +1302,14 @@ modules的大体结构是这样的.
 },
 ```
 
-`cache`是一个对象, 每当一个模块被执行之后, 它的执行结果就会被保存在这个缓存中, 当再次需到需要这个模块的时候, 就会直接从缓存中去取对应的结果.
+`cache`是一个对象, 每当一个模块被执行之后, 它的执行结果就会被保存在这个缓存中, 当再次需到需要这个模块的时候, 就会直接从缓存中去取对应的结果，这样也可以确保每个模块只会被执行一次。
 
 
 `entry`是一个数组, 保存了入口模块的id, 这个数组中的入口模块将会被最先执行.
 
 ```js
+
+<!-- prelude.js -->
 
 // 定义一个全局的require函数
 require = (function (modules, cache, entry) {
@@ -1289,7 +1322,7 @@ require = (function (modules, cache, entry) {
       if (!modules[name]) {
         
         // 如果没有在缓存中或者当前模块列表中找到该模块, 则到最新覆盖的require中去找，
-        // 这样如果最新当中没有找到， 就会到之前的require中去找，以此类推， 这样确保能遍历到整个require链。
+        // 这样如果最新当中没有找到，就会到之前的require中去找，以此类推， 这样确保能遍历到整个require链。
 
         var currentRequire = typeof require === "function" && require;
         if (!jumped && currentRequire) {
@@ -1316,7 +1349,9 @@ require = (function (modules, cache, entry) {
       
       localRequire.resolve = resolve;
 
-      // 如果在本模块列表中，但是没在缓存中，执行该模块，更新缓存
+      // 如果在本模块列表中，但是没在缓存中，执行该模块，
+      // 模块被执行之后，在模块内部，实际上就是在修改exports对象或者是module.exports对象
+      // 这样同时就会更新缓存
       
       // 针对每个模块，实例化一个新的module变量，这个变量通常是用来包含该模块的导出信息。
       var module = cache[name] = new newRequire.Module;
@@ -1326,10 +1361,12 @@ require = (function (modules, cache, entry) {
       modules[name][0].call(module.exports, localRequire, module, module.exports);
     }
     
-    // 如果已经在缓存中，直接返回该模块的导出对象
+    // 如果已经在缓存中，直接返回该模块的导出对象，避免模块被多次执行。
     return cache[name].exports;
     
-    // 根据模块路径来查找，newRequire是根据模块id来查找
+    // 传入模块内部的require是LocalRequire而不是全局的require？
+    // 第一： 因为内部的require根据模块路径来查找，newRequire是根据模块id来查找
+    // 第二： 确保内部require调用的是当前的require, 而不是被覆盖过的require
     function localRequire(x){
       return newRequire(localRequire.resolve(x));
     }
@@ -1364,7 +1401,7 @@ require = (function (modules, cache, entry) {
 
 可以看到，在经过Babel的commonjs转换，packager的打包处理之后，一个简单的模块加载器就形成了。
 
-利用函数我们把一个个模块封装起来，并给其提供 __引入和导出__ 的接口，并把这些模块之间的依赖关系计算清楚，使得模块之间能够相互依赖和引用，这样在不支持模块机制的浏览器环境中，我们也能够不去污染全局变量，提前体会到模块化带来的好处。
+利用函数我们把一个个模块封装起来，并给其提供 __引入和导出__ 的接口和一套模块规范，并把这些实现这些模块规范模块之间的依赖关系计算清楚，使得模块之间能够相互依赖和引用，这样在不支持模块机制的浏览器环境中，我们也能够不去污染全局变量，提前体会到模块化带来的好处。
 
 ### 如何处理重复资源打包的问题？(findCommonAncestor)
 
