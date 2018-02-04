@@ -1003,9 +1003,6 @@ addURLDependency(url, from = this.name, opts) {
 
 __注意:__ 依赖收集的过程中,是不会判断是否是重复资源的问题的, 资源去重的功能会在createBundleTree的时候, 也就是生成最终的bundle树的时候进行判断.
 
-### 不同类型的资源怎么做不同的处理和转换？(asset.parse, asset.transform)
-
-js: babel
 
 ### 什么是动态导入, 如何实现动态导入？(dep.dynamic)
 
@@ -1194,31 +1191,109 @@ LazyPromise.prototype.catch = function (onError) {
 
 ```
 
-### 如何处理不同模块系统的代码，并生成统一的模块依赖方式？(babel, prelude.js)
+###  如何实现一个前端模块机制, 如何处理不同模块系统的代码，并将其混入这个自有的模块机制？(babel, prelude.js)
+
+es6的模块通通被转成commonJs模块处理,
+下面是经过babel的插件`babel-plugin-transform-es2015-modules-commonjs`转换的结果.
 
 
 ```js
-// modules are defined as an array
-// [ module function, map of requires ]
-//
-// map of requires is short require name -> numeric require
-//
-// anything defined in a previous bundle is accessed via the
-// orig method which is the require for previous bundles
+// input
+import a from './b.js';
+export default a;
 
-// eslint-disable-next-line no-global-assign
+export const b = 3;
+
+// output
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.b = undefined;
+
+var _b = require('./b.js');
+
+var _b2 = _interopRequireDefault(_b);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+exports.default = _b2.default;
+
+var b = exports.b = 3;
+```
+
+可以看到每个需要导入导出的模块中都有`require`, `exports`等关键字存在.
+
+
+__require__
+每个模块中有一个自由变量require，它是一个方法，这个方法接受一个参数，即模块的路径.
+
+__exports__
+每个模块中还有一个自由变量exports，它是一个对象，模块对外输出的API就绑定在这个对象上。而且exports是模块对外输出API的唯一途径。
+
+
+下面看一看如何实现这些关键字:
+
+
+首先在源码中的一个个以文件区分的模块, 经过我们的编译之后
+被保存在了modules这个对象中. 
+
+modules的大体结构是这样的. 
+
+```js
+{
+  moduleId: [
+    // 模块
+    function (require, module, module.exports) {
+      'use strict';
+
+      Object.defineProperty(exports, "__esModule", {
+        value: true
+      });
+      exports.b = undefined;
+
+      var _b = require('./b.js');
+
+      var _b2 = _interopRequireDefault(_b);
+
+      function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+      exports.default = _b2.default;
+
+      var b = exports.b = 3;
+    },
+    // 依赖模块对象, 标明了我们计算过的模块路径对应的模块id
+    {"./b.js":16}
+  ],
+
+  ...
+},
+```
+
+`cache`是一个对象, 每当一个模块被执行之后, 它的执行结果就会被保存在这个缓存中, 当再次需到需要这个模块的时候, 就会直接从缓存中去取对应的结果.
+
+
+`entry`是一个数组, 保存了入口模块的id, 这个数组中的入口模块将会被最先执行.
+
+```js
+
+// 定义一个全局的require函数
 require = (function (modules, cache, entry) {
-  // Save the require from previous bundle to this closure if any
+
+  // 每个require被新的覆盖之前, 保存之前的require函数, 形成一个require链 
   var previousRequire = typeof require === "function" && require;
 
   function newRequire(name, jumped) {
     if (!cache[name]) {
       if (!modules[name]) {
-        // if we cannot find the module within our internal map or
-        // cache jump to the current global require ie. the last bundle
-        // that was added to the page.
+        
+        // 如果没有在缓存中或者当前模块列表中找到该模块, 则到最新覆盖的require中去找，
+        // 这样如果最新当中没有找到， 就会到之前的require中去找，以此类推， 这样确保能遍历到整个require链。
+
         var currentRequire = typeof require === "function" && require;
         if (!jumped && currentRequire) {
+          // 到了最新的require中，需要跳过currentRequire这一步, 不然会陷入死循环
           return currentRequire(name, true);
         }
 
@@ -1226,10 +1301,14 @@ require = (function (modules, cache, entry) {
         // previous one is saved to 'previousRequire'. Repeat this as
         // many times as there are bundles until the module is found or
         // we exhaust the require chain.
+
+        // 如果在这个require之前页面上已经有了其他的打包文件, 则尝试在之前的require上去找, 
+        以此类推, 直到模块被找到, 或者require链被查找完为止.
         if (previousRequire) {
           return previousRequire(name, true);
         }
-
+      
+        // 如果通过上述所有的办法都没能找到该模块，直接抛出错误
         var err = new Error('Cannot find module \'' + name + '\'');
         err.code = 'MODULE_NOT_FOUND';
         throw err;
@@ -1237,22 +1316,31 @@ require = (function (modules, cache, entry) {
       
       localRequire.resolve = resolve;
 
+      // 如果在本模块列表中，但是没在缓存中，执行该模块，更新缓存
+      
+      // 针对每个模块，实例化一个新的module变量，这个变量通常是用来包含该模块的导出信息。
       var module = cache[name] = new newRequire.Module;
-
+      
+      // 这里会注入3个关键字， require, module, exports.
+      // 该模块的内部的顶级this会指向module.exports, 而不是浏览器的window等对象
       modules[name][0].call(module.exports, localRequire, module, module.exports);
     }
-
+    
+    // 如果已经在缓存中，直接返回该模块的导出对象
     return cache[name].exports;
-
+    
+    // 根据模块路径来查找，newRequire是根据模块id来查找
     function localRequire(x){
       return newRequire(localRequire.resolve(x));
     }
-
+    
+    // 将模块的路径通过模块中计算好的依赖对象，找到对应的模块id
     function resolve(x){
       return modules[name][1][x] || x;
     }
   }
-
+  
+  // Module类
   function Module() {
     this.bundle = newRequire;
     this.exports = {};
@@ -1262,18 +1350,27 @@ require = (function (modules, cache, entry) {
   newRequire.modules = modules;
   newRequire.cache = cache;
   newRequire.parent = previousRequire;
-
+  
+  // 执行入口文件
   for (var i = 0; i < entry.length; i++) {
     newRequire(entry[i]);
   }
 
-  // Override the current require with this new one
+  // 将新的require对象覆盖全局变量中的require
   return newRequire;
 })(modules, cache, entry)
 
 ```
 
+可以看到，在经过Babel的commonjs转换，packager的打包处理之后，一个简单的模块加载器就形成了。
+
+利用函数我们把一个个模块封装起来，并给其提供 __引入和导出__ 的接口，并把这些模块之间的依赖关系计算清楚，使得模块之间能够相互依赖和引用，这样在不支持模块机制的浏览器环境中，我们也能够不去污染全局变量，提前体会到模块化带来的好处。
+
 ### 如何处理重复资源打包的问题？(findCommonAncestor)
+
+### 不同类型的资源怎么做不同的处理和转换？(asset.parse, asset.transform)
+
+js: babel
 
 ### 如何处理各种非Js资源? (Asset的各种子类实现)
 
