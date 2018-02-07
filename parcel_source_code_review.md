@@ -1174,15 +1174,23 @@ require = (function (modules, cache, entry) {
 
 ### 如何处理重复资源打包的问题？(findCommonAncestor)
 
-### 不同类型的资源怎么做不同的处理和转换？(asset.parse, asset.transform)
-
-js: babel
-
-### 如何处理各种非Js资源? (Asset的各种子类实现)
 
 ### 如何监听打包资源的变化？(FSWatcher, onChange)
 
 ### 如何利用webSocket 实现HMR功能？ (HMRServer, hmr-runtime.js)
+
+```js
+if (cached && cached.hot && cached.hot._acceptCallback) {
+  cached.hot._acceptCallback();
+
+  // 为什么在执行accept函数之后，就返回true，而不是继续更新所有依赖这个资源的资源？
+  return true;
+}
+```
+
+客户端和服务端是通过端口连接的吗？
+
+为什么热更新时需要`findOrphanAssets`？
 
 ### 如何利用缓存提高打包速度？(Cache)
 
