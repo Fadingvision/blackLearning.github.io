@@ -1177,7 +1177,86 @@ require = (function (modules, cache, entry) {
 
 ### 如何监听打包资源的变化？(FSWatcher, onChange)
 
+```js
+if (this.options.watch) {
+	// 利用FSWatcher开启一个文件监听服务，并注册相应的监听事件
+  // See https://github.com/paulmillr/chokidar
+  this.watcher = new FSWatcher({
+    useFsEvents: process.env.NODE_ENV !== 'test'
+  });
+
+  this.watcher.on('change', this.onChange.bind(this));
+}
+```
+
+```js
+async onChange(path) {
+  let asset = this.loadedAssets.get(path);
+  if (!asset) {
+    return;
+  }
+
+  this.logger.clear();
+  this.logger.status(emoji.progress, `Building ${asset.basename}...`);
+
+  // 将对应的已经发生改变的文件资源重新加入构建队列，
+  this.buildQueue.add(asset);
+
+  // 限制100ms内的构建次数，不能频繁构建
+  clearTimeout(this.rebuildTimeout);
+
+  this.rebuildTimeout = setTimeout(async () => {
+    await this.i();
+  }, 100);
+}
+```
+
 ### 如何利用webSocket 实现HMR功能？ (HMRServer, hmr-runtime.js)
+
+
+利用`ws`做nodejs的websocket服务端实现,　浏览器端使用原生的WebSocket
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ```js
 if (cached && cached.hot && cached.hot._acceptCallback) {
