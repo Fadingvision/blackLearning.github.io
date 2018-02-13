@@ -1214,14 +1214,221 @@ async onChange(path) {
 ### 如何利用webSocket 实现HMR功能？ (HMRServer, hmr-runtime.js)
 
 
-利用`ws`做nodejs的websocket服务端实现,　浏览器端使用原生的WebSocket
+> WebSocket是HTML5开始提供的一种在单个 TCP 连接上进行全双工通讯的协议。
+在WebSocket API中，浏览器和服务器只需要做一个握手的动作，然后，浏览器和服务器之间就形成了一条快速通道。两者之间就直接可以数据互相传送。
+> 浏览器通过 JavaScript 向服务器发出建立 WebSocket 连接的请求，连接建立以后，客户端和服务器端就可以通过 TCP 连接直接交换数据。
+> 当你获取 Web Socket 连接后，你可以通过 send() 方法来向服务器发送数据，并通过 onmessage 事件来接收服务器返回的数据。
+
+利用`ws`做nodejs的websocket服务端实现,　浏览器端使用原生的WebSocket.
+
+#### 服务端的处理：
+
+新建一个websocket连接：
+
+```js
+async start(port) {
+  await new Promise(resolve => {
+    this.wss = new WebSocket.Server({port}, resolve);
+  });
+	
+	// 如果之前有未处理的错误，建立连接之后仍然需要将该错误发送到客户端
+  this.wss.on('connection', ws => {
+    ws.onerror = this.handleSocketError;
+    if (this.unresolvedError) {
+      ws.send(JSON.stringify(this.unresolvedError));
+    }
+  });
+	
+	// 为服务连接添加错误处理
+  this.wss.on('error', this.handleSocketError);
+
+  return this.wss._server.address().port;
+}
+```
+
+打包错误处理：
+
+```js
+emitError(err) {
+	// 将打包错误信息格式化
+  let {message, stack} = prettyError(err);
+
+  // 保存最近的错误信息，以便能够通知新的连接
+  // 并且当错误解决的时候能够广播通知
+  this.unresolvedError = {
+    type: 'error',
+    error: {
+      message,
+      stack
+    }
+  };
+	
+	// 将错误信息通知到所有的客户端
+  this.broadcast(this.unresolvedError);
+}
+```
+
+更新处理
+
+```js
+// 重置错误信息
+if (this.unresolvedError) {
+  this.unresolvedError = null;
+  this.broadcast({
+    type: 'error-resolved'
+  });
+}
+
+// 如果更新的资源列表中存在html类型，则需要重新刷新页面，
+const containsHtmlAsset = assets.some(asset => asset.type === 'html');
+if (containsHtmlAsset) {
+  this.broadcast({
+    type: 'reload'
+  });
+} else {
+  this.broadcast({
+    type: 'update',
+
+    // 将模块的id, 生成的代码串，以及它自身的依赖map对象通知到客户端
+    assets: assets.map(asset => {
+      let deps = {};
+      for (let dep of asset.dependencies.values()) {
+        let mod = asset.depAssets.get(dep.name);
+        deps[dep.name] = mod.id;
+      }
+
+      return {
+        id: asset.id,
+        generated: asset.generated,
+        deps: deps
+      };
+    })
+  });
+}
+```
 
 
+#### 客户端的处理：
 
 
+首先，没有开启hmr的时候，注入每个模块的module对象是不包含hot对象，这里用新的Module继承原Module类，添加hot对象，替换原Module类。
+
+```js
+// 一个小技巧，无视闭包拿到global对象
+var global = (1, eval)('this');
+var OldModule = module.bundle.Module;
+function Module() {
+  OldModule.call(this);
+  this.hot = {
+  	// 用于添加模块更新的时候的回调函数，例如redux中，如果有reducer更新了，需要执行relpaceReducer函数，保证state状态的更新。
+    accept: function (fn) {
+      this._acceptCallback = fn || function () {};
+    },
+    // 用于添加模块销毁的回调。
+    dispose: function (fn) {
+      this._disposeCallback = fn;
+    }
+  };
+}
+
+module.bundle.Module = Module;
+```
+
+然后建立scoket连接，并接受相应的数据。
+
+每个客户端只需要建立一次WebSocket链接，所以保证这个没有`previousRequire`的存在，即是第一次建立连接。
+
+```js
+if (!module.bundle.parent && typeof WebSocket !== 'undefined') {
+  var ws = new WebSocket('ws://' + window.location.hostname + ':{{HMR_PORT}}/');
+  ws.onmessage = function(event) {
+    var data = JSON.parse(event.data);
+		
+		// 依次对每个更新资源进行处理
+    if (data.type === 'update') {
+      data.assets.forEach(function (asset) {
+        hmrApply(global.require, asset);
+      });
+
+      data.assets.forEach(function (asset) {
+        if (!asset.isNew) {
+          hmrAccept(global.require, asset.id);
+        }
+      });
+    }
+		
+		// 如果接受到reload事件，需要关闭连接，然后刷新当前页面
+		// 刷新后会再次建立新的连接
+    if (data.type === 'reload') {
+      ws.close();
+      ws.onclose = function () {
+        window.location.reload();
+      }
+    }
+
+    if (data.type === 'error-resolved') {
+      console.log('[parcel] ✨ Error resolved');
+    }
+
+    if (data.type === 'error') {
+      console.error('[parcel] 🚨  ' + data.error.message + '\n' + 'data.error.stack');
+    }
+  };
+}
+```
+
+处理资源：
+
+```js
+function hmrApply(bundle, asset) {
+  var modules = bundle.modules;
+  if (!modules) {
+    return;
+  }
+	
+	// 如果模块存在
+	// 或者不存在之前的模块列表（即在所有的模块中没有找到该模块的id， 代表更新模块是新增的）
+  if (modules[asset.id] || !bundle.parent) {
+    var fn = new Function('require', 'module', 'exports', asset.generated.js);
+    asset.isNew = !modules[asset.id];
+    // 将对应模块进行替换更新
+    modules[asset.id] = [fn, asset.deps];
+  // 如果在当前模块中没找到，则到之前的模块中去找
+  } else if (bundle.parent) {
+    hmrApply(bundle.parent, asset);
+  }
+}
 
 
+function hmrAccept(bundle, id) {
+  var modules = bundle.modules;
+  if (!modules) {
+    return;
+  }
 
+  if (!modules[id] && bundle.parent) {
+    return hmrAccept(bundle.parent, id);
+  }
+
+  var cached = bundle.cache[id];
+  if (cached && cached.hot._disposeCallback) {
+    cached.hot._disposeCallback();
+  }
+
+  delete bundle.cache[id];
+  bundle(id);
+
+  cached = bundle.cache[id];
+  if (cached && cached.hot && cached.hot._acceptCallback) {
+    cached.hot._acceptCallback();
+    return true;
+  }
+
+  return getParents(global.require, id).some(function (id) {
+    return hmrAccept(global.require, id)
+  });
+}
+```
 
 
 
