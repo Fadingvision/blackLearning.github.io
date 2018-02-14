@@ -1174,6 +1174,28 @@ require = (function (modules, cache, entry) {
 
 ### 如何处理重复资源打包的问题？(findCommonAncestor)
 
+由于Bundle实例采用的是Set结构，所以不会存在重复asset被加入同一个打包束中.
+
+但是如果是两个不同的bundle实例，则有可能会产生重复打包的问题。
+
+Parcel在每次对asset被加入bundle束的时候，将asset被打包进去的bundle实例记录在了asset.parentBundle属性中，如果在以后的Bundle实例构建的时候发现这种parentBundle和当前打包进入的bunlde不一致，则需要找到两个bundle的共同祖先bundle，并将其移入这个bundle中，由此减少重复打包
+
+```js
+if (asset.parentBundle) {
+  // If the asset is already in a bundle, it is shared. Move it to the lowest common ancestor.
+  if (asset.parentBundle !== bundle) {
+    let commonBundle = bundle.findCommonAncestor(asset.parentBundle);
+    if (
+      asset.parentBundle !== commonBundle &&
+      asset.parentBundle.type === commonBundle.type
+    ) {
+      this.moveAssetToBundle(asset, commonBundle);
+      return;
+    }
+  } else return;
+}
+```
+
 
 ### 如何监听打包资源的变化？(FSWatcher, onChange)
 
@@ -1409,7 +1431,8 @@ function hmrAccept(bundle, id) {
   if (!modules[id] && bundle.parent) {
     return hmrAccept(bundle.parent, id);
   }
-
+  
+  // 销毁缓存，更新缓存
   var cached = bundle.cache[id];
   if (cached && cached.hot._disposeCallback) {
     cached.hot._disposeCallback();
@@ -1419,70 +1442,25 @@ function hmrAccept(bundle, id) {
   bundle(id);
 
   cached = bundle.cache[id];
+
+  // 如果用户自定义了更新回调，则直接执行该回调
   if (cached && cached.hot && cached.hot._acceptCallback) {
     cached.hot._acceptCallback();
     return true;
   }
-
+  
+  // 否则更新所有依赖该资源的资源
   return getParents(global.require, id).some(function (id) {
     return hmrAccept(global.require, id)
   });
 }
 ```
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-```js
-if (cached && cached.hot && cached.hot._acceptCallback) {
-  cached.hot._acceptCallback();
-
-  // 为什么在执行accept函数之后，就返回true，而不是继续更新所有依赖这个资源的资源？
-  return true;
-}
-```
-
-客户端和服务端是通过端口连接的吗？
-
-为什么热更新时需要`findOrphanAssets`？
-
 ### 如何利用缓存提高打包速度？(Cache)
 
+主要把打包后的资源的信息（例如依赖，生成的代码）以JSON格式缓存在`.cache`文件夹中，并以其文件名+hash的方式作为标识，如果二次打包的时候检测到有对应的资源在缓存中存在，则直接在缓存中获取即可。
+
 ### 如何自定义一个Parcel-plugin,或者新增一个资源类型处理的类？
-
-
 
 
 ## The good things you can learn through the code-review 
