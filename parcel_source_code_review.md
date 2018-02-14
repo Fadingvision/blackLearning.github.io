@@ -4,10 +4,6 @@
 
 # Classes
 
-### Bundler
-> 打包主程序
-
-
 ### Assets
 
 文件资源类，负责记录所有的原始资源，资源打包的结果信息；
@@ -256,14 +252,17 @@ __methods:__
 
 ---------
 
+### Bundler
+> 打包主程序,详见下面打包流程分析
+
 ### FSCache
-> 缓存
+> 缓存，详见下面缓存策略分析
 
 ### Logger
 > 日志输出
 
 ### Server , HMRServer
-> 为打包结果生成web服务
+> 为打包结果生成web服务，详见下面Hmr分析
 
 ----
 
@@ -1460,7 +1459,63 @@ function hmrAccept(bundle, id) {
 
 主要把打包后的资源的信息（例如依赖，生成的代码）以JSON格式缓存在`.cache`文件夹中，并以其文件名+hash的方式作为标识，如果二次打包的时候检测到有对应的资源在缓存中存在，则直接在缓存中获取即可。
 
-### 如何自定义一个Parcel-plugin,或者新增一个资源类型处理的类？
+### parcel 扩展
+
+如果你通过node Api来使用parcel, 可以对其进行一些扩展
+
+1. 新增资源处理类：
+
+parcel 内置支持下列的资源类型
+
+- js
+- jsx
+- es6
+- jsm
+- mjs
+- ml
+- re
+- ts
+- tsx
+- coffee
+- json
+- yaml
+- yml
+- gql
+- graphql
+- css
+- pcss
+- styl
+- less
+- sass
+- scss
+- html
+
+如果你希望新增一个资源类型，并且对其相应的处理。
+
+```
+const Parcel = require('parcel-bundler');
+const bundler = new Parcel(main, options);
+// 需要自己实现对应的Asset类来对其进行处理
+bundler.addAssetType('assetType', Asset); 
+```
+
+2. 新增资源打包类
+
+parcel默认只支持`js, html, css, raw`四种打包类，分别用来生成js, html, css 以及其他类型的文件，　你可以添加你自己的打包类。
+
+```
+const Parcel = require('parcel-bundler');
+const bundler = new Parcel(main, options);
+// 需要自己实现对应的packager类来对其进行处理
+bundler.addPackager('fileType', packager); 
+```
+
+3. 新增parcel插件：
+
+parcel主张`none-configture`的策略，所以parcel会默认将package.json中的所有以`parcel-plugin`开头的包作为parcel的插件进行处理，所以确保你安装在package.json中的插件是你想用的插件。
+
+parcel在加载插件之后，会将bundler实例作为参数来调用该插件，
+插件可以通过该bundler实例来扩展parcel的功能。
 
 
 ## The good things you can learn through the code-review 
@@ -1469,8 +1524,7 @@ function hmrAccept(bundle, id) {
 
 1. 熟悉工具或框架的使用，API.
 2. 对使用过程中出现的问题能够快速的debug.
-3. 对于工具深度的性能优化有更深的了解。
-
+3. 对于工具深度的性能优化有更深的了解.
 
 ### 技术层面：
 
