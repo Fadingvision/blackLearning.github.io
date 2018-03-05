@@ -1518,6 +1518,33 @@ parcel在加载插件之后，会将bundler实例作为参数来调用该插件�
 插件可以通过该bundler实例来扩展parcel的功能。
 
 
+### V1.5更新
+
+- 允许死循环的打包代码，A引用B, B又引用A
+- 添加html中的css热更新
+- 新增wasm, rust打包资源支持
+- 支持Js的sourceMap
+
+### V1.6更新
+
+- 支持CORS
+
+```js
+function enableCors(res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader(
+    'Access-Control-Allow-Methods',
+    'GET, HEAD, PUT, PATCH, POST, DELETE'
+  );
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'Origin, X-Requested-With, Content-Type, Accept, Content-Type'
+  );
+}
+```
+
+- 添加无配置的jsx支持
+
 ## The good things you can learn through the code-review 
 
 ### 业务层面：
