@@ -8,7 +8,7 @@
 
 和react的setState的机制不一样, setState这里是同步的，执行setState之后，state立即更新，
 但是渲染的逻辑被加入到了js线程栈尾执行，并且当上一次setState之后的
-component._dirty被置为true,此时如果继续执行setState将不会触发重新渲染，只有当组件重绘完毕之后，才能再次触发渲染．
+component._dirty被置为true,此时如果继续执行setState将不会触发重新渲染，只有当组件重绘完毕之后，才能再次触发渲染．　
 
 
 ```js
