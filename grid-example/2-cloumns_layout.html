@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Document</title>
+  <style>
+    body {
+      display: grid;
+      grid-template-columns: 75% 25%;
+      grid-template-rows: 10vw 30vw 10vw;
+      grid-gap: 1em;
+    }
+
+    header,
+    footer {
+      grid-column: 1 / span 2;
+    }
+
+    /* Demo Specific Styles */
+    body {
+      margin: 0 auto;
+      max-width: 56em;
+      padding: 1em 0;
+    }
+
+    header,
+    main,
+    aside,
+    footer {
+      background: #eaeaea;
+      display: flex;
+      align-items: center;
+      justify-content: center
+    }
+  </style>
+</head>
+<body>
+  <header>
+    Header
+  </header>
+  <main>
+    Main
+  </main>
+  <aside>
+    Sidebar
+  </aside>
+  <footer>
+    Footer
+  </footer>
+</body>
+</html>
