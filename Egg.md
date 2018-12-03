@@ -67,7 +67,13 @@
 
 #### Restful API
 #### cluster & worker
+
+egg-scripts, egg-cluster
+
 #### logger
+
+egg-logger
+
 #### cookie & session
 #### error-handling
 #### security
@@ -77,6 +83,9 @@
 #### websocket
 #### graphql
 #### Static Assets
+
+egg-view-assets
+
 #### 部署(pm2, docker, nginx)
 #### 扩展: loader & plugin & framework
 
