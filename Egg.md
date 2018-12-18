@@ -2,15 +2,90 @@
 
 ### 基础
 
-#### 1. extend, router, controller, service, middlewares 扩展收集
 
-- 怎么挂载多个app.js和agent.js? 框架的启动顺序，生命周期？
 
- egg.Appliation => EggApplication => EggCore => Koa.Application
+#### 1. extend, router, controller, service, middlewares 扩展收集, 框架的启动顺序，生命周期？
 
- EggCore => LifeCycle
+egg.Appliation => EggApplication => EggCore => Koa.Application
 
-egg应用的启动都是由`egg-cluster`来启动egg中的application文件来进行启动的，这个文件最终继承自koa的application类。
+egg核心应用的启动都是由`egg-cluster`在app_worker中来实例化egg中的application文件来进行启动的，这个文件最终继承自koa的application类。
+
+application实例化的时候，做了几件事：
+
+1. 初始化
+
+```js
+// EggCore
+this.controller, 
+this.Service, 
+this.consoleLogger, 
+this.lifeCycle,
+this.loader
+// EggApplication
+this.ContextCookies
+this.ContextLogger
+this.ContextHttpClient
+this.HttpClient
+this.messenger
+this.cluster 
+```
+
+2. 
+
+
+####加载plugin和config.
+
+```js
+this.loader.loadConfig();
+```
+
+
+加载插件完成之后，回去加载包括所有插件，所有框架，应用本身的配置文件，
+由于针对每个环境的不同的配置文件，配置文件最终会以以下顺序合并：
+
+extend(
+  {},
+  app.config.env,
+  framework.config.env,
+  plugin.config.env,
+  app.config.default,
+  framework.config.default,
+  plugin.config.default,
+);
+
+由此得到最终的配置文件。
+
+
+
+#### 监听`egg-ready`, `unhandledRejection`, `beforeClose`事件
+
+
+3. 加载各个插件，框架，以及应用（包括egg本身）的extends, customApp, service, middleware, controller, router.
+
+```js
+load() {
+  // app > plugin > core
+  this.loadApplicationExtend();
+  this.loadRequestExtend();
+  this.loadResponseExtend();
+  this.loadContextExtend();
+  this.loadHelperExtend();
+
+  // app > plugin
+  this.loadCustomApp();
+  // app > plugin
+  this.loadService();
+  // app > plugin > core
+  this.loadMiddleware();
+  // app
+  this.loadController();
+  // app
+  this.loadRouter(); // Dependent on controllers
+}
+```
+
+
+-----
 
 - 如何将koa的context, app, request, response挂在this上?
 
