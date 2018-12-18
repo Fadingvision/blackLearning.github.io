@@ -30,7 +30,31 @@ egg-view
 
 egg-static
 
-#### 5. schedule & model
+#### 5. schedule
+
+
+定时任务：
+
+```js
+module.exports = agent => {
+  // don't redirect scheduleLogger
+  agent.loggers.scheduleLogger.unredirect('error');
+
+  // register built-in strategy
+  agent.schedule.use('worker', WorkerStrategy);
+  agent.schedule.use('all', AllStrategy);
+
+  // wait for other plugin to register custom strategy
+  agent.beforeStart(() => {
+    agent.schedule.init();
+  });
+
+  agent.messenger.once('egg-ready', () => {
+    // start schedule after worker ready
+    agent.schedule.start();
+  });
+};
+```
 
 #### 6. middlewares
 
@@ -216,17 +240,101 @@ handler(key, schedule, listener) {
 
 ### 进阶
 
-#### Restful API
 #### cluster & worker
 
 egg-bin, egg-scripts, egg-cluster
 
 #### logger
 
-egg-logger
+egg-logger的日志一般分为以下几种类型：
 
-#### cookie & session
+debug, info, warn, error;
+在实现上为这几种不同类型的日志提供了相对应的方法。
+
+根据输出日志的地方，可以将日志划分为：
+
+- 输出在控制台上
+
+```js
+/**
+  * output log, see {@link Transport#log}
+  * if stderrLevel presents, will output log to stderr
+  * @param  {String} level - log level, in upper case
+  * @param  {Array} args - all arguments
+  * @param  {Object} meta - meta infomations
+  */
+ log(level, args, meta) {
+   const msg = super.log(level, args, meta);
+   if (levels[level] >= this.options.stderrLevel && levels[level] < levels['NONE']) {
+     process.stderr.write(msg);
+   } else {
+     process.stdout.write(msg);
+   }
+ }
+```
+
+- 输出到对应的日志文件中
+
+```js
+// 首先基于options.file来新建一个可写入的文件流
+_createStream() {
+  mkdirp.sync(path.dirname(this.options.file));
+  const stream = fs.createWriteStream(this.options.file, { flags: 'a' });
+
+  const onError = err => {
+    console.error('%s ERROR %s [egg-logger] [%s] %s',
+      utility.logDate(','), process.pid, this.options.file, err.stack);
+    this.reload();
+    console.warn('%s WARN %s [egg-logger] [%s] reloaded', utility.logDate(','), process.pid, this.options.file);
+  };
+  // only listen error once because stream will reload after error
+  stream.once('error', onError);
+  stream._onError = onError;
+  return stream;
+}
+
+log(level, args, meta) {
+  if (!this.writable) {
+    const err = new Error(`${this.options.file} log stream had been closed`);
+    console.error(err.stack);
+    return;
+  }
+  const buf = super.log(level, args, meta);
+  // 将二进制日志信息写入到对应的文件流中
+  if (buf.length) {
+    this._write(buf);
+  }
+}
+```
+
 #### error-handling
+
+```js
+module.exports = () => {
+  return async function errorHandler(ctx, next) {
+    try {
+      await next();
+    } catch (err) {
+      // 所有的异常都在 app 上触发一个 error 事件，框架会记录一条错误日志
+      ctx.app.emit('error', err, ctx);
+
+      const status = err.status || 500;
+      // 生产环境时 500 错误的详细错误内容不返回给客户端，因为可能包含敏感信息
+      const error = status === 500 && ctx.app.config.env === 'prod'
+        ? 'Internal Server Error'
+        : err.message;
+
+      // 从 error 对象上读出各个属性，设置到响应中
+      ctx.body = { error };
+      if (status === 422) {
+        ctx.body.detail = err.errors;
+      }
+      ctx.status = status;
+    }
+  };
+};
+```
+
 #### security
 
 常见的安全漏洞如下：
@@ -272,10 +380,6 @@ style-src cdn.example.org third-party.org; child-src https:
 其他一些安全相关的功能，也放在了 CSP 里面。block-all-mixed-content：HTTPS 网页不得加载 HTTP 资源（浏览器已经默认开启）upgrade-insecure-requests：自动将网页上所有加载外部资源的 HTTP 链接换成 HTTPS 协议plugin-types：限制可以使用的插件格式sandbox：浏览器行为的限制，比如不能有弹出窗口等。
 
 在egg中可以通过`config.security.csp = {enable: true}`来开启`content-security-policy`header.
-
-
-
-
 
 - CSRF 攻击：伪造用户请求向网站发起恶意请求。
 
@@ -325,16 +429,13 @@ Custom Header：信任带有特定的 header（例如 X-Requested-With: XMLHttpR
   : includeSubDomains 可选
   如果这个可选的参数被指定，那么说明此规则也适用于该网站的所有子域名。
 
+---------
 
 #### ORM & datasbase
 #### validation & passport
 #### microservices
 #### websocket
 #### graphql
-#### Static Assets
-
-egg-view-assets
-
 #### 部署(pm2, docker, nginx)
 #### 扩展: loader & plugin & framework
 
