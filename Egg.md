@@ -4,17 +4,21 @@
 
 #### 1. extend, router, controller, service, middlewares 扩展收集
 
+- 怎么挂载多个app.js和agent.js? 框架的启动顺序，生命周期？
+
+ egg.Appliation => EggApplication => EggCore => Koa.Application
+
+ EggCore => LifeCycle
+
+egg应用的启动都是由`egg-cluster`来启动egg中的application文件来进行启动的，这个文件最终继承自koa的application类。
+
 - 如何将koa的context, app, request, response挂在this上?
 
 - 如何将各种扩展收集在app或者ctx上?
 
 - 怎么控制middlewares的顺序?
 
-- 怎么挂载多个app.js和agent.js? 框架的启动顺序，生命周期？
 
- egg.Appliation => EggApplication => EggCore => Koa.Application
-
- EggCore => LifeCycle
 
 #### 2. config & app.js & agent.js
 
@@ -28,7 +32,7 @@ egg-static
 
 #### 5. schedule & model
 
-#### 6. middleware
+#### 6. middlewares
 
 框架自带的middleware: 
 
@@ -86,6 +90,125 @@ egg-static
 
 - `security`  安全
 - `schedule`  定时任务
+
+当框架启动的时候一般会有一些定时任务的执行。例如：
+
+1. 定时上报应用状态。
+2. 定时从远程接口更新本地缓存，定时更新database。
+3. 定时进行文件切割、临时文件删除。
+
+```js
+module.exports = agent => {
+  // don't redirect scheduleLogger
+  agent.loggers.scheduleLogger.unredirect('error');
+
+  // 注册不同的定时器策略
+  agent.schedule.use('worker', WorkerStrategy);
+  agent.schedule.use('all', AllStrategy);
+
+  // 初始化定时器
+  agent.beforeStart(() => {
+    agent.schedule.init();
+  });
+
+  // 开始运行定时器
+  agent.messenger.once('egg-ready', () => {
+    // start schedule after worker ready
+    agent.schedule.start();
+  });
+};
+```
+
+两种不同的定时器策略`all`和`worker`主要决定了当agent发起定时器任务的消息时，master是将这个指令发送给所有的app worker来执行，还是随机的选择其中一个worker来执行。
+
+开始运行：
+
+```js
+// AllStrategy
+module.exports = class AllStrategy extends Strategy {
+  start() {
+    this.agent.scheduleTimer.handler(this.key, this.schedule, () => this.sendAll());
+  }
+};
+```
+
+当执行start的时候，会在注册一个timer来运行定时任务。
+
+```js
+handler(key, schedule, listener) {
+    const { interval, cron, cronOptions, immediate } = schedule;
+    assert(interval || cron || immediate, '[egg-schedule] schedule.interval or schedule.cron or schedule.immediate must be present');
+
+    // 简单的定时器任务
+    if (interval) {
+      const tid = this.safeInterval(listener, ms(interval));
+      this.interval.set(key, tid);
+    }
+
+    // 复杂的cron型任务
+    if (cron) {
+      let interval;
+      try {
+        interval = parser.parseExpression(cron, cronOptions);
+      } catch (err) {
+        err.message = `[egg-schedule] parse cron instruction(${cron}) error: ${err.message}`;
+        throw err;
+      }
+      this.startCron(key, interval, listener);
+    }
+
+    if (immediate) {
+      setImmediate(listener);
+    }
+  }
+```
+
+实际上只是发送了一个消息给到master进程,master进程接收到该消息后，会在一个匿名的context环境中去真正的执行task函数，从而完成定时器任务的执行。
+
+```js
+// register schedule event
+  app.messenger.on('egg-schedule', data => {
+    const id = data.id;
+    const key = data.key;
+    const schedule = schedules[key];
+    const logger = app.loggers.scheduleLogger;
+    logger.info(`[${id}] ${key} task received by app`);
+
+    if (!schedule) {
+      logger.warn(`[${id}] ${key} unknown task`);
+      return;
+    }
+    /* istanbul ignore next */
+    if (schedule.schedule.disable) return;
+
+    // run with anonymous context
+    const ctx = app.createAnonymousContext({
+      method: 'SCHEDULE',
+      url: `/__schedule?path=${key}&${qs.stringify(schedule.schedule)}`,
+    });
+
+    const start = Date.now();
+    const task = schedule.task;
+    logger.info(`[${id}] ${key} executing by app`);
+    // execute
+    task(ctx, ...data.args)
+      .then(() => true) // succeed
+      .catch(err => {
+        logger.error(`[${id}] ${key} execute error.`, err);
+        err.message = `[egg-schedule] ${key} execute error. ${err.message}`;
+        app.logger.error(err);
+        return false; // failed
+      })
+      .then(success => {
+        const rt = Date.now() - start;
+        const status = success ? 'succeed' : 'failed';
+        ctx.coreLogger.info(`[egg-schedule] ${key} execute ${status}, used ${rt}ms`);
+        logger[success ? 'info' : 'error'](`[${id}] ${key} execute ${status}, used ${rt}ms`);
+      });
+  });
+```
+
+
 - `static`  静态服务器
 - `jsonp`  jsonp 支持
 - `view`  模板引擎
