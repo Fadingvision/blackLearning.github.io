@@ -2,8 +2,6 @@
 
 ### 基础
 
-
-
 #### 1. extend, router, controller, service, middlewares 扩展收集, 框架的启动顺序，生命周期？
 
 egg.Appliation => EggApplication => EggCore => Koa.Application
@@ -15,17 +13,26 @@ application实例化的时候，做了几件事：
 1. 初始化
 
 ```js
-// EggCore
-this.controller, 
+/*  EggCore */
+
+// Controller基类，主要用于向this添加ctx, app, config等对象
+this.controller,
+// Service基类，主要用于向this添加ctx, app, config等对象
 this.Service, 
+// 用于向控制台输出一些信息，如时间，配置等
 this.consoleLogger, 
+// 管理应用的生命周期
 this.lifeCycle,
+// 用于加载各种配置以及扩展
 this.loader
-// EggApplication
+/* EggApplication */
 this.ContextCookies
+// 用于向控制台以及日志文件输出一些信息，如请求参数，时间。
 this.ContextLogger
+// 一般用于发送请求
 this.ContextHttpClient
 this.HttpClient
+// 用于app worker 和 agent worker以及master之间通信，例如定时任务的触发就是通过通信完成的
 this.messenger
 this.cluster 
 ```
@@ -53,7 +60,8 @@ extend(
   plugin.config.default,
 );
 
-由此得到最终的配置文件。
+由此得到最终的配置文件挂在this.config对象上。
+插件挂在this.plugin上。
 
 
 
@@ -84,18 +92,30 @@ load() {
 }
 ```
 
+extend的收集很简单，把应用和框架以及egg本身的所有extend收集，然后mixin到对应的app, app.request, app.response, app.context上即可。
+Services加载到app.context中，并且用getter懒实例化。
+controller加载到app.controller中。
+router单文件直接执行即可。
+middleware加载到app.middlewares中，并且过滤掉enable为false的中间件，然后通过`app.use()`逐一注册到app中。
+
+this.loadCustomApp()用于处理应用启动自定义的代码功能，
+在收集到应用和plugin里面的app或者agent.js之后，会根据是class的写法或者function写法来加入lifeCycle.
+
+```js
+if (is.class(bootHook)) {
+  // if is boot class, add to lifecycle
+  this.lifecycle.addBootHook(bootHook);
+} else if (is.function(bootHook)) {
+  // if is boot function, wrap to class
+  // for compatibility
+  this.lifecycle.addFunctionAsBootHook(bootHook);
+} else {
+  this.options.logger.warn('[egg-loader] %s must exports a boot class', bootFilePath);
+}
+```
+
 
 -----
-
-- 如何将koa的context, app, request, response挂在this上?
-
-- 如何将各种扩展收集在app或者ctx上?
-
-- 怎么控制middlewares的顺序?
-
-
-
-#### 2. config & app.js & agent.js
 
 #### 3. view
 
