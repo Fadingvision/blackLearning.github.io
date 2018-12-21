@@ -40,7 +40,7 @@ this.cluster
 2. 
 
 
-####加载plugin和config.
+#### 加载plugin和config.
 
 ```js
 this.loader.loadConfig();
@@ -99,7 +99,7 @@ router单文件直接执行即可。
 middleware加载到app.middlewares中，并且过滤掉enable为false的中间件，然后通过`app.use()`逐一注册到app中。
 
 this.loadCustomApp()用于处理应用启动自定义的代码功能，
-在收集到应用和plugin里面的app或者agent.js之后，会根据是class的写法或者function写法来加入lifeCycle.
+在收集到应用和plugin里面的app或者agent.js之后，会根据是class的写法或者function写法来加入lifeCycle, 这些启动自动义的函数通通会在config加载完成之后执行，可以用来修改配置，执行数据预请求，插入中间件，修改中间件顺序等操作。
 
 ```js
 if (is.class(bootHook)) {
