@@ -119,11 +119,141 @@ if (is.class(bootHook)) {
 
 #### 3. view
 
-egg-view
+view的请求服务类似static, 不同的是针对不同的模板文件做一些不同的编译处理，然后作为html字符串返回即可.
 
-#### 4. static
+#### 4. egg-static, 用于静态文件(public)的请求服务。
 
-egg-static
+主要逻辑如下：
+
+```js
+return async (ctx, next) => {
+  // only accept HEAD and GET
+  if (ctx.method !== 'HEAD' && ctx.method !== 'GET') return await next()
+  // check prefix first to avoid calculate
+  if (ctx.path.indexOf(options.prefix) !== 0) return await next()
+
+  // 通过request的路径找到提前缓存的文件
+  var filename = path.normalize(safeDecodeURIComponent(ctx.path))
+  var file = files.get(filename)
+
+  // try to load file
+  if (!file) {
+    if (!options.dynamic) return await next()
+    if (path.basename(filename)[0] === '.') return await next()
+    if (filename.charAt(0) === path.sep) filename = filename.slice(1)
+
+    // trim prefix
+    if (options.prefix !== '/') {
+      if (filename.indexOf(filePrefix) !== 0) return await next()
+      filename = filename.slice(filePrefix.length)
+    }
+
+    var fullpath = path.join(dir, filename)
+    // files that can be accessd should be under options.dir
+    if (fullpath.indexOf(dir) !== 0) {
+      return await next()
+    }
+
+    var s
+    try {
+      s = await fs.stat(fullpath)
+    } catch (err) {
+      return await next()
+    }
+    if (!s.isFile()) return await next()
+
+    file = loadFile(filename, dir, options, files)
+  }
+
+  ctx.status = 200
+
+  if (enableGzip) ctx.vary('Accept-Encoding')
+
+  if (!file.buffer) {
+    var stats = await fs.stat(file.path)
+    // 如果文件被编辑过，更新文件的编辑时间，md5值，以及文件大小
+    if (stats.mtime > file.mtime) {
+      file.mtime = stats.mtime
+      file.md5 = null
+      file.length = stats.size
+    }
+  }
+
+  // 根据协商缓存策略设置lastModified和etag值
+  ctx.response.lastModified = file.mtime
+  if (file.md5) ctx.response.etag = file.md5
+
+  // 检查请求的缓存是否可用，即内容没有发生改变。
+  // 此方法用来验证协商缓存 If-None-Match / ETag、If-Modified-Since 和 Last-Modified。
+  if (ctx.fresh)
+    return ctx.status = 304
+
+  ctx.type = file.type
+  ctx.length = file.zipBuffer ? file.zipBuffer.length : file.length
+  ctx.set('cache-control', file.cacheControl || 'public, max-age=' + file.maxAge)
+  if (file.md5) ctx.set('content-md5', file.md5)
+
+  if (ctx.method === 'HEAD')
+    return
+
+  var acceptGzip = ctx.acceptsEncodings('gzip') === 'gzip'
+
+  if (file.zipBuffer) {
+    if (acceptGzip) {
+      ctx.set('content-encoding', 'gzip')
+      ctx.body = file.zipBuffer
+    } else {
+      ctx.body = file.buffer
+    }
+    return
+  }
+
+  var shouldGzip = enableGzip
+    && file.length > 1024
+    && acceptGzip
+    && compressible(file.type)
+
+  // 如果文件内容通过buffer的形式缓存起来
+  if (file.buffer) {
+    if (shouldGzip) {
+
+      var gzFile = files.get(filename + '.gz')
+      if (options.usePrecompiledGzip && gzFile && gzFile.buffer) { // if .gz file already read from disk
+        file.zipBuffer = gzFile.buffer
+      } else {
+        // 将文件进行压缩
+        file.zipBuffer = await zlib.gzip(file.buffer)
+      }
+      // 返回压缩后的gzip编码文件
+      ctx.set('content-encoding', 'gzip')
+      ctx.body = file.zipBuffer
+    } else {
+      ctx.body = file.buffer
+    }
+    return
+  }
+
+  // 通过文件流式返回body
+  var stream = fs.createReadStream(file.path)
+
+  // update file hash
+  if (!file.md5) {
+    var hash = crypto.createHash('md5')
+    stream.on('data', hash.update.bind(hash))
+    stream.on('end', function () {
+      file.md5 = hash.digest('base64')
+    })
+  }
+
+  ctx.body = stream
+  // enable gzip will remove content length
+  if (shouldGzip) {
+    ctx.remove('content-length')
+    ctx.set('content-encoding', 'gzip')
+    ctx.body = stream.pipe(zlib.createGzip())
+  }
+}
+```
 
 #### 5. schedule
 
@@ -327,12 +457,6 @@ handler(key, schedule, listener) {
   });
 ```
 
-
-- `static`  静态服务器
-- `jsonp`  jsonp 支持
-- `view`  模板引擎
-
-
 ### 进阶
 
 #### cluster & worker
@@ -532,5 +656,3 @@ Custom Header：信任带有特定的 header（例如 X-Requested-With: XMLHttpR
 #### websocket
 #### graphql
 #### 部署(pm2, docker, nginx)
-#### 扩展: loader & plugin & framework
-
