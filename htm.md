@@ -1,7 +1,19 @@
+### htm 源码分析
+
+#### feature: 用ES6的tag template代替jsx
+
+- 无需编译, 使用es6的`tag template`, 浏览器直接支持(生产环境建议还是用babel编译, 否则render时需要编译, 影响性能)
+
+```js
+const CACHE = {};
+
+const stringify = JSON.stringify;
+
 export default function html(statics) {
   let key = '.';
   for (let i=0; i<statics.length; i++) key += statics[i].length + ',' + statics[i];
-  const tpl = build(statics);
+  // 用组件的html文本作为键值, 缓存计算结果, 避免重复计算
+  const tpl = CACHE[key] || (CACHE[key] = build(statics));
 
   // eslint-disable-next-line prefer-rest-params
   return tpl(this, arguments);
@@ -60,6 +72,7 @@ const build = (statics) => {
     }
     // 简单属性模式<div a="b"></div> 或者 扩展属性模式(<div ...${props}>xxx</div>)
     else if (mode === MODE_ATTRIBUTE || (mode === MODE_WHITESPACE && buffer === '...')) {
+      // 扩展属性模式, 将其他props和扩展Props通过oBject.assign组合起来
       if (mode === MODE_WHITESPACE) {
         if (!spreadClose) {
           spreadClose = ')';
@@ -110,11 +123,10 @@ const build = (statics) => {
   
      => 
 
-    statics:
+    $[0]/statics:
      0: "↵          <div class="app">↵            <ul>↵              "
      1: "↵            </ul>↵            <button onClick="
      2: ">Add Todo</button>↵          </div>↵        "
-
    */
 
   for (let i=0; i<statics.length; i++) {
@@ -145,7 +157,7 @@ const build = (statics) => {
       }
       // 特殊字符的处理
       else {
-        // 单引号和双引号
+        // 跳过单引号和双引号, 也支持不写引号的属性值
         if (charCode === QUOTE_SINGLE || charCode === QUOTE_DOUBLE) {
           if (quote === charCode) {
             quote = 0;
@@ -178,11 +190,11 @@ const build = (statics) => {
               if (slash) {
                 out += ')';
               }
-              // 不在标签内
+              // 重置标签flag
               inTag = 0;
               // 清空props
               props = '';
-              // 进入文本模式
+              // 默认进入文本模式
               mode = MODE_TEXT;
               continue;
             case EQUALS:
@@ -224,5 +236,206 @@ const build = (statics) => {
     }
   }
   commit();
+
   return Function('h', '$', out);
 };
+
+```
+
+#### 生产环境: `babel-plugin-htm`
+
+
+```js
+import htm from 'htm';
+
+/**
+ * @param {Babel} babel
+ * @param {object} options
+ * @param {string} [options.pragma=h]  JSX/hyperscript pragma.
+ * @param {string} [options.tag=html]  The tagged template "tag" function name to process.
+ * @param {boolean} [options.monomorphic=false]  Output monomorphic inline objects instead of using String literals.
+ * @param {boolean} [options.useBuiltIns=false]  Use the native Object.assign instead of trying to polyfill it.
+ * @param {boolean} [options.variableArity=true] If `false`, always passes exactly 3 arguments to the pragma function.
+ */
+export default function htmBabelPlugin({ types: t }, options = {}) {
+  const pragma = options.pragma===false ? false : dottedIdentifier(options.pragma || 'h');
+  const useBuiltIns = options.useBuiltIns;
+  const inlineVNodes = options.monomorphic || pragma===false;
+
+  function dottedIdentifier(keypath) {
+    const path = keypath.split('.');
+    let out;
+    for (let i=0; i<path.length; i++) {
+      const ident = propertyName(path[i]);
+      out = i===0 ? ident : t.memberExpression(out, ident);
+    }
+    return out;
+  }
+
+  function patternStringToRegExp(str) {
+    const parts = str.split('/').slice(1);
+    const end = parts.pop() || '';
+    return new RegExp(parts.join('/'), end);
+  }
+  
+  function propertyName(key) {
+    if (key.match(/(^\d|[^a-z0-9_$])/i)) return t.stringLiteral(key);
+    return t.identifier(key);
+  }
+  
+  function stringValue(str) {
+    if (options.monomorphic) {
+      return t.objectExpression([
+        t.objectProperty(propertyName('type'), t.numericLiteral(3)),
+        t.objectProperty(propertyName('tag'), t.nullLiteral()),
+        t.objectProperty(propertyName('props'), t.nullLiteral()),
+        t.objectProperty(propertyName('children'), t.nullLiteral()),
+        t.objectProperty(propertyName('text'), t.stringLiteral(str))
+      ]);
+    }
+    return t.stringLiteral(str);
+  }
+  
+  function createVNode(tag, props, children) {
+    // Never pass children=[[]].
+    if (children.elements.length === 1 && t.isArrayExpression(children.elements[0]) && children.elements[0].elements.length === 0) {
+      children = children.elements[0];
+    }
+
+    if (inlineVNodes) {
+      return t.objectExpression([
+        options.monomorphic && t.objectProperty(propertyName('type'), t.numericLiteral(1)),
+        t.objectProperty(propertyName('tag'), tag),
+        t.objectProperty(propertyName('props'), props),
+        t.objectProperty(propertyName('children'), children),
+        options.monomorphic && t.objectProperty(propertyName('text'), t.nullLiteral())
+      ].filter(Boolean));
+    }
+
+    // Passing `{variableArity:false}` always produces `h(tag, props, children)` - where `children` is always an Array.
+    // Otherwise, the default is `h(tag, props, ...children)`.
+    if (options.variableArity !== false) {
+      children = children.elements;
+    }
+
+    return t.callExpression(pragma, [tag, props].concat(children));
+  }
+  
+  function spreadNode(args, state) {
+    // 'Object.assign({}, x)', can be collapsed to 'x'.
+    if (args.length === 2 && !t.isNode(args[0]) && Object.keys(args[0]).length === 0) {
+      return propsNode(args[1]);
+    }
+    const helper = useBuiltIns ? dottedIdentifier('Object.assign') : state.addHelper('extends');
+    return t.callExpression(helper, args.map(propsNode));
+  }
+  
+  function propsNode(props) {
+    if (props == null) return t.nullLiteral();
+
+    return t.isNode(props) ? props : t.objectExpression(
+      Object.keys(props).map(key => {
+        let value = props[key];
+        if (typeof value==='string') {
+          value = t.stringLiteral(value);
+        }
+        else if (typeof value==='boolean') {
+          value = t.booleanLiteral(value);
+        }
+        return t.objectProperty(propertyName(key), value);
+      })
+    );
+  }
+
+  // 将普通对象通过babel-types转成 babel 能识别的标识符.
+  function transform(node, state) {
+    /*
+      {
+      type: "Identifier",
+      name: "a"
+    }
+     */
+    if (node === undefined) return t.identifier('undefined');
+    if (node == null) return t.nullLiteral();
+
+    const { tag, props, children } = node;
+    function childMapper(child) {
+      if (typeof child==='string') {
+        return stringValue(child);
+      }
+      return t.isNode(child) ? child : transform(child, state);
+    }
+    const newTag = typeof tag === 'string' ? t.stringLiteral(tag) : tag;
+    const newProps = !Array.isArray(props) ? propsNode(props) : spreadNode(props, state);
+    const newChildren = t.arrayExpression(children.map(childMapper));
+    return createVNode(newTag, newProps, newChildren);
+  }
+  
+  function h(tag, props, ...children) {
+    return { tag, props, children };
+  }
+  
+  const html = htm.bind(h);
+  
+  // 先将该模板转为一个virtual dom对象. 目前只支持一个root对象.
+  // {
+  //   tag: '',
+  //   props: {},
+  //   children: [{
+  //    tag: '',
+  //    props: {},
+  //    children: ....
+  //   }]
+  // }
+  function treeify(statics, expr) {
+    const assign = Object.assign;
+    try {
+      Object.assign = function(...objs) { return objs; };
+      return html(statics, ...expr);
+    }
+    finally {
+      Object.assign = assign;
+    }
+  }
+
+  // The tagged template tag function name we're looking for.
+  // This is static because it's generally assigned via htm.bind(h),
+  // which could be imported from elsewhere, making tracking impossible.
+  const htmlName = options.tag || 'html';
+  return {
+    name: 'htm',
+    // 访问者是一个用于 AST 遍历的跨语言的模式。 
+    // 简单的说它们就是一个对象，定义了用于在一个树状结构中获取具体节点的方法。
+    // 把它用于遍历中时，每当在树中遇见一个 TaggedTemplateExpression 的时候会调用 TaggedTemplateExpression() 方法。
+    visitor: {
+      /**
+       * html`` 字符串模板表达式
+       * @param {[type]} path  
+       *
+       * path是一个节点在树中的位置以及关于该节点各种信息的响应式 Reactive 表示。
+       * 你调用一个修改树的方法后，路径信息也会被更新。 Babel 帮你管理这一切，从而使得节点操作简单，尽可能做到无状态。
+       * 所有修改节点都必须通过path提供的方法来进行.
+       * 
+       * @param {[type]} state 
+       *
+       * 如果您想让您的用户自定义您的Babel插件的行为您可以接受用户可以指定的插件特定选项，
+       * 这些选项会通过`state`对象传递给插件访问者
+       */
+      TaggedTemplateExpression(path, state) {
+        const tag = path.node.tag.name;
+        if (htmlName[0]==='/' ? patternStringToRegExp(htmlName).test(tag) : tag === htmlName) {
+          // 获取该模板中所有的字符串表达式
+          const statics = path.node.quasi.quasis.map(e => e.value.raw);
+          // 获取该模板中所有的js表达式`${js expressions}`
+          const expr = path.node.quasi.expressions;
+
+          const tree = treeify(statics, expr);
+          // 由于babel是标准的ast树, 不能简单的用字符串代替.
+          // 因此需要把node树转成AST树, 然后代替原来的AST树, 从而完成转换
+          path.replaceWith(transform(tree, state));
+        }
+      }
+    }
+  };
+}
+```
