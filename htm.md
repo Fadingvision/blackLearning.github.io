@@ -347,18 +347,28 @@ export default function htmBabelPlugin({ types: t }, options = {}) {
     );
   }
 
-  // 将普通对象通过babel-types转成 babel 能识别的标识符.
+  /*
+    将普通对象通过babel-types转成 babel 能识别的标识符.
+    js中的所有数据类型对应的 type表示:
+   * string: t.stringLiteral(str);
+   * undefined: t.identifier('undefined');
+   * null: t.nullLiteral(str);
+   * boolean: t.booleanLiteral(str);
+   * number: t.numericLiteral(str);
+   * array: t.arrayExpression([]);
+   * object: t.objectExpression([
+     t.objectProperty(t.stringLiteral(key), t.stringLiteral(value)),
+     t.objectProperty(t.stringLiteral(key), t.stringLiteral(value)),
+    ]);
+   * function call: t.callExpression(helper, [args]);
+  */
   function transform(node, state) {
-    /*
-      {
-      type: "Identifier",
-      name: "a"
-    }
-     */
+    
     if (node === undefined) return t.identifier('undefined');
     if (node == null) return t.nullLiteral();
 
     const { tag, props, children } = node;
+    // 递归转换所有的children 对象
     function childMapper(child) {
       if (typeof child==='string') {
         return stringValue(child);
