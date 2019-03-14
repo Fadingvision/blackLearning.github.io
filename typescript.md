@@ -207,3 +207,7 @@ function getName(n: NameOrResolver): Name {
     }
 }
 ```
+
+
+#### .d.ts
+
