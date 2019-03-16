@@ -62,7 +62,7 @@ pid /var/run/nginx.pid;
 常用指令：
 
 - server_tokens off;
-表明是否开启response header中的Server字段中的`Nginx`标识。
+表明是否展示response header中的Server字段中的`nginx`版本号信息。
 
 - log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
                     '$status $body_bytes_sent "$http_referer" '
@@ -144,7 +144,7 @@ map 的主要作用是创建自定义变量，通过使用 nginx 的内置变量
 
 上面的设置了一些自定义的变量，这些变量会根据发送的content-type来设置对应的变量值。
 
-#### server：配置虚拟主机的相关参数，一个http中可以有多个server。
+#### server：配置虚拟主机的相关参数，一个http中可以有多个server, NGINX可以通过listen和server_name来决定使用哪个server来响应你的请求。
 
 常用指令：
 
@@ -161,6 +161,9 @@ server {
   return 444;
 }
 ```
+
+- root /var/www/example.com/public;
+设置静态文件请求的根路径
 
 - listen: 设置虚拟主机的IP地址和端口
 
@@ -196,7 +199,7 @@ server {
 }
 ```
 
-nginx将会按照下面的原则顺序来查找到对应的server模块:
+nginx将会按照下面的原则顺序匹配server_name属性：
 
 - 首先尝试找到请求头部中的`Host`字段的值与server_name完全匹配的server block;
 - 匹配以首通配符开头的server_name
@@ -205,9 +208,7 @@ nginx将会按照下面的原则顺序来查找到对应的server模块:
 - 如果上述都没有匹配到, nginx选择default_server标识 或者第一个server block作为请求匹配block.
 
 
-- root /var/www/example.com/public;
 
-设置静态文件请求的根路径
 
 ### 关于选择 www 或非 www URL 作为域名
 
@@ -247,7 +248,7 @@ server {
 
 ```
 
-#### location：配置请求的路由，以及各种页面的处理情况。
+#### location：配置请求的路由，以及各种页面的处理情况。nginx将会用url来匹配对应的location块，从而选择怎样去处理你的请求。
 
 
 ```js
@@ -256,7 +257,7 @@ location optional_modifier location_match {
 }
 ```
 
-optional_modifier: 
+optional_modifier:
 
 - `=`: 完全匹配
 - `~`大小写敏感的正则匹配
@@ -264,7 +265,7 @@ optional_modifier:
 - `^~`: 非正则匹配
 - `none`: 用request url来进行普通的前缀匹配
 
-directives: 
+常用指令:
 
 - index
 
@@ -275,7 +276,7 @@ autoindex on | off;
 
 - try_files
 
-```
+```conf
 root /var/www/main;
 try_files $uri $uri.html $uri/ /fallback/index.html;
 ```
@@ -283,7 +284,7 @@ try_files $uri $uri.html $uri/ /fallback/index.html;
 
 - rewrite
 
-```
+```conf
 rewrite ^/rewriteme/(.*)$ /$1 last;
 ```
 
@@ -292,7 +293,7 @@ rewrite ^/rewriteme/(.*)$ /$1 last;
 
 - error_page
 
-```
+```conf
 error_page 404             /404.html;
 error_page 500 502 503 504 /50x.html;
 ```
@@ -302,9 +303,8 @@ error_page 500 502 503 504 /50x.html;
 ```conf
 http {
     upstream myapp1 {
-        server srv1.example.com;
-        server srv2.example.com;
-        server srv3.example.com;
+        server srv1.example.com weight=2;
+        server srv2.example.com weight=1;
     }
 
     server {
@@ -315,12 +315,11 @@ http {
         }
     }
 }
+
+upstream指令定义了一个被代理的服务器的列表，NGINX将会使用负载均衡来决定将请求发送到被代理的服务器上, 权重越大的服务就会被分配越多的连接。
 ```
 
-
 ### Nginx如何处理一个请求
-
-nginx 的十一个阶段处理
 
 ```conf
 server {
@@ -343,7 +342,6 @@ server {
 ```
 
 nginx首先测试请求的IP地址和端口是否匹配某个server配置块中的listen指令配置。接着nginx继续测试请求的Host头是否匹配这个server块中的某个server_name的值。如果主机名没有找到，nginx将把这个请求交给默认虚拟主机处理。例如，一个从192.168.1.1:80端口收到的访问www.example.com的请求将被监听192.168.1.1:80端口的默认虚拟主机处理，本例中就是第一个服务器，因为这个端口上没有定义名为www.example.com的虚拟主机。
-
 
 默认服务器是监听端口的属性，所以不同的监听端口可以设置不同的默认服务器：
 
@@ -483,7 +481,7 @@ http {
 }
 
 http {
-  # 关闭 response header中的Server字段中的`Nginx`标识。避免攻击
+  # 表明是否展示response header中的Server字段中的`nginx`版本号信息。
   server_tokens off;
 }
 
@@ -495,8 +493,24 @@ server {
 }
 ```
 
-### 跨域
+### 跨域CORS
 
+> 跨域资源共享标准新增了一组 HTTP 首部字段，允许服务器声明哪些源站通过浏览器有权限访问哪些资源。另外，规范要求，对那些可能对服务器数据产生副作用的 HTTP 请求方法（特别是 GET 以外的 HTTP 请求，或者搭配某些 MIME 类型的 POST 请求），浏览器必须首先使用 OPTIONS 方法发起一个预检请求（preflight request），从而获知服务端是否允许该跨域请求。服务器确认允许之后，才发起实际的 HTTP 请求。在预检请求的返回中，服务器端也可以通知客户端，是否需要携带身份凭证（包括 Cookies 和 HTTP 认证相关数据）。"预检请求“的使用，可以避免跨域请求对服务器的用户数据产生未预期的影响。
+
+其他CORSheader的含义：
+
+Access-Control-Allow-Methods: POST, GET, OPTIONS
+Access-Control-Allow-Headers: X-PINGOTHER, Content-Type
+Access-Control-Max-Age: 86400
+Access-Control-Allow-Credentials: true
+
+首部字段 Access-Control-Allow-Methods 表明服务器允许客户端使用 POST, GET 和 OPTIONS 方法发起请求。该字段与 HTTP/1.1 Allow: response header 类似，但仅限于在需要访问控制的场景中使用。
+
+首部字段 Access-Control-Allow-Headers 表明服务器允许请求中携带字段 X-PINGOTHER 与 Content-Type。与 Access-Control-Allow-Methods 一样，Access-Control-Allow-Headers 的值为逗号分割的列表。
+
+最后，首部字段 Access-Control-Max-Age 表明该响应的有效时间为 86400 秒，也就是 24 小时。在有效时间内，浏览器无须为同一请求再次发起预检请求。请注意，浏览器自身维护了一个最大有效时间，如果该首部字段的值超过了最大有效时间，将不会生效。
+
+Access-Control-Allow-Credentials表示是否允许客户端发送cookie等身份认证信息，表示如果服务端的响应中缺失 Access-Control-Allow-Credentials: true信息，则浏览器不会将响应内容返回给请求的发起者。
 
 ```conf
 http {
@@ -536,20 +550,36 @@ http {
 server {
   listen       80;
   server_name  fe.server.com;
-  location / {
-    proxy_pass dev.server.com;
+  location /remoteapp {
+    proxy_set_header   Host             $host:$server_port;
+    proxy_set_header   X-Real-IP        $remote_addr;
+    proxy_set_header   X-Forwarded-For  $proxy_add_x_forwarded_for;
+    proxy_pass http://remoteAPIServer/;
+  }
+
+  location /api/v1/ {
+    proxy_pass https://remoteAPIServer/api/v1/;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection 'upgrade';
+    proxy_set_header Host $host;
+    proxy_cache_bypass $http_upgrade;
+    proxy_redirect http:// https://;
   }
 }
 ```
 
+proxy_pass将会把你的请求发送到对应的被代理的服务器上。
+proxy_set_header: 设置发送到服务器上的额外header.
+proxy_redirect: 代理重定向，将服务器上的重定向修改为https之后返回给客户端。
+
 ### 压缩
 
 ```conf
-# Enable gzip compression.
-# Default: off
+# 开启gzip压缩
 gzip on;
 
-# Compression level (1-9).
+# 压缩级别 (1-9).
 # 5 is a perfect compromise between size and CPU usage, offering about
 # 75% reduction for most ASCII files (almost identical to level 9).
 # Default: 1
@@ -558,6 +588,7 @@ gzip_comp_level 5;
 # Don't compress anything that's already small and unlikely to shrink much
 # if at all (the default is 20 bytes, which is bad as that usually leads to
 # larger files after gzipping).
+# 最小的可压缩数据，默认是20，通常会压缩出更大的数据，所以限制为256
 # Default: 20
 gzip_min_length 256;
 
@@ -573,7 +604,7 @@ gzip_proxied any;
 # Default: off
 gzip_vary on;
 
-# Compress all output labeled with one of the following MIME-types.
+# 压缩的数据类型。
 # text/html is always compressed by gzip module.
 # Default: text/html
 gzip_types
@@ -607,7 +638,6 @@ gzip_types
 ```
 
 ### 缓存
-
 
 ```conf
 map $sent_http_content_type $expires {
@@ -686,10 +716,12 @@ map $sent_http_content_type $expires {
 expires $expires;
 ```
 
-### 负载均衡
-
 ### 日志
 
+
+常用的日志用access_log, error_log.
+
+可以定义不同的日志格式为不同的日志类型使用：
 
 ```conf
 # Default main log format from nginx repository:
@@ -739,9 +771,12 @@ log_format debug-level-2
 
 ### 工具
 
-[nginx config 生成器](https://nginxconfig.io/)
-[nginx 配置分析](https://nginxconfig.io/)
-[nginx 日志分析](https://nginxconfig.io/)
-[nginx 性能分析](https://nginxconfig.io/)
+- [nginx config 生成器](https://nginxconfig.io/)
+- [nginx 配置分析](https://nginxconfig.io/)
+- [nginx 日志分析](https://nginxconfig.io/)
+- [nginx 性能分析](https://nginxconfig.io/)
 
 ### 最佳实践
+
+
+### reference
