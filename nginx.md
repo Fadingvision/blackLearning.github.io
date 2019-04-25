@@ -1,7 +1,6 @@
-## NGINX
+# NGINX笔记
 
-### Nginx配置文件结构
-
+## Nginx配置文件结构
 
 ```nginx
 Core Contexts:
@@ -14,7 +13,7 @@ Core Contexts:
     Mail Context
 ```
 
-#### 全局变量：
+### 全局变量：
 
 - $host: 请信息中的Host，如果请求中没有Host行，则等于设置的服务器名
 - $request_method: 客户端请求类型，如GET、POST
@@ -29,7 +28,7 @@ Core Contexts:
 - $server_name: 服务器名称
 - $server_port: 服务器的端口号
 
-#### main: nginx的全局配置，对全局生效。
+### main: nginx的全局配置，对全局生效。
 
 常用指令：
 
@@ -48,7 +47,7 @@ pid /var/run/nginx.pid;
 - worker_processes number | auto: 用于指定子进程的数量，auto默认为CPU核心的数量;
 
 
-#### events: 配置影响nginx服务器或与用户的网络连接。
+### events: 配置影响nginx服务器或与用户的网络连接。
 
 常用指令：
 
@@ -57,12 +56,12 @@ pid /var/run/nginx.pid;
 服务的最大连接数 = worker_connections * worker_processes;
 
 
-#### http: 可以嵌套多个server，配置代理，缓存，日志定义等绝大多数功能和第三方模块的配置。
+### http: 可以嵌套多个server，配置代理，缓存，日志定义等绝大多数功能和第三方模块的配置。
 
 常用指令：
 
 - server_tokens off;
-表明是否开启response header中的Server字段中的`Nginx`标识。
+表明是否展示response header中的Server字段中的`nginx`版本号信息。
 
 - log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
                     '$status $body_bytes_sent "$http_referer" '
@@ -98,7 +97,7 @@ map 的主要作用是创建自定义变量，通过使用 nginx 的内置变量
 
   # Add Content-Security-Policy for HTML documents.
   # h5bp/security/content-security-policy.conf
-  map $sent_http_content_type $content_security_policy {
+  map $sent_http_content_type "script-src 'self'; object-src 'self'" {
     text/html "script-src 'self'; object-src 'self'";
   }
 
@@ -144,7 +143,7 @@ map 的主要作用是创建自定义变量，通过使用 nginx 的内置变量
 
 上面的设置了一些自定义的变量，这些变量会根据发送的content-type来设置对应的变量值。
 
-#### server：配置虚拟主机的相关参数，一个http中可以有多个server。
+### server：配置虚拟主机的相关参数，一个http中可以有多个server, NGINX可以通过listen和server_name来决定使用哪个server来响应你的请求。
 
 常用指令：
 
@@ -161,6 +160,9 @@ server {
   return 444;
 }
 ```
+
+- root /var/www/example.com/public;
+设置静态文件请求的根路径
 
 - listen: 设置虚拟主机的IP地址和端口
 
@@ -196,7 +198,7 @@ server {
 }
 ```
 
-nginx将会按照下面的原则顺序来查找到对应的server模块:
+nginx将会按照下面的原则顺序匹配server_name属性：
 
 - 首先尝试找到请求头部中的`Host`字段的值与server_name完全匹配的server block;
 - 匹配以首通配符开头的server_name
@@ -205,11 +207,9 @@ nginx将会按照下面的原则顺序来查找到对应的server模块:
 - 如果上述都没有匹配到, nginx选择default_server标识 或者第一个server block作为请求匹配block.
 
 
-- root /var/www/example.com/public;
 
-设置静态文件请求的根路径
 
-### 关于选择 www 或非 www URL 作为域名
+## 关于选择 www 或非 www URL 作为域名
 
 > 在一个 HTTP 网址中，在初始 http:// 或 https:// 后的第一个子字符串称为域。它是文档所在的服务器的名称。
 
@@ -247,7 +247,7 @@ server {
 
 ```
 
-#### location：配置请求的路由，以及各种页面的处理情况。
+### location：配置请求的路由，以及各种页面的处理情况。nginx将会用url来匹配对应的location块，从而选择怎样去处理你的请求。
 
 
 ```js
@@ -256,7 +256,7 @@ location optional_modifier location_match {
 }
 ```
 
-optional_modifier: 
+optional_modifier:
 
 - `=`: 完全匹配
 - `~`大小写敏感的正则匹配
@@ -264,7 +264,7 @@ optional_modifier:
 - `^~`: 非正则匹配
 - `none`: 用request url来进行普通的前缀匹配
 
-directives: 
+常用指令:
 
 - index
 
@@ -275,7 +275,7 @@ autoindex on | off;
 
 - try_files
 
-```
+```conf
 root /var/www/main;
 try_files $uri $uri.html $uri/ /fallback/index.html;
 ```
@@ -283,7 +283,7 @@ try_files $uri $uri.html $uri/ /fallback/index.html;
 
 - rewrite
 
-```
+```conf
 rewrite ^/rewriteme/(.*)$ /$1 last;
 ```
 
@@ -292,19 +292,18 @@ rewrite ^/rewriteme/(.*)$ /$1 last;
 
 - error_page
 
-```
+```conf
 error_page 404             /404.html;
 error_page 500 502 503 504 /50x.html;
 ```
 
-#### upstream：配置后端服务器具体地址，负载均衡配置不可或缺的部分。
+### upstream：配置上游的服务（例如nodejs, php, java服务）具体地址，负载均衡配置不可或缺的部分。
 
 ```conf
 http {
     upstream myapp1 {
-        server srv1.example.com;
-        server srv2.example.com;
-        server srv3.example.com;
+        server srv1.example.com weight=2;
+        server srv2.example.com weight=1;
     }
 
     server {
@@ -315,12 +314,11 @@ http {
         }
     }
 }
+
+upstream指令定义了一个被代理的服务器的列表，NGINX将会使用负载均衡来决定将请求发送到被代理的服务器上, 权重越大的服务就会被分配越多的连接。
 ```
 
-
-### Nginx如何处理一个请求
-
-nginx 的十一个阶段处理
+## Nginx如何处理一个请求
 
 ```conf
 server {
@@ -343,7 +341,6 @@ server {
 ```
 
 nginx首先测试请求的IP地址和端口是否匹配某个server配置块中的listen指令配置。接着nginx继续测试请求的Host头是否匹配这个server块中的某个server_name的值。如果主机名没有找到，nginx将把这个请求交给默认虚拟主机处理。例如，一个从192.168.1.1:80端口收到的访问www.example.com的请求将被监听192.168.1.1:80端口的默认虚拟主机处理，本例中就是第一个服务器，因为这个端口上没有定义名为www.example.com的虚拟主机。
-
 
 默认服务器是监听端口的属性，所以不同的监听端口可以设置不同的默认服务器：
 
@@ -368,7 +365,7 @@ server {
 
 ```
 
-### HTTPS/HTTP2
+## HTTPS/HTTP2
 
 此部分的功能由`ngx_http_ssl_module`模块提供。
 
@@ -424,7 +421,7 @@ ssl_certificate 指定当前虚拟主机所使用的证书文件，会被发送�
 ssl_certificate_key是私匙，应该被存在一个读写权限控制的文件之中，同时可以被nginx master进程读取。
 
 
-### 关于HTTPS
+## 关于HTTPS/2
 
 公钥是所有人都能获取到的钥匙，私钥则是服务器私自保存的钥匙。非对称加密算法中公钥加密的内容只能用私钥解密，私钥加密的内容则只有公钥才能解密。
 
@@ -452,8 +449,14 @@ server {
 
 ssl_protocols 和 ssl_ciphers 用于限制TLS(传输层安全协议)指定版本和指定加密算法的链接。
 
+HTTP/1.x 客户端需要使用多个连接才能实现并发和缩短延迟；HTTP/1.x 不会压缩请求和响应标头，从而导致不必要的网络流量；HTTP/1.x 不支持有效的资源优先级，致使底层 TCP 连接的利用率低下；
+因此与 HTTP/1.1 相比，HTTP/2 的主要变化在于性能提升。HTTP 方法、状态代码、URI 和标头字段等核心概念一如往常。因此升级到HTTP2并不需要网站管理者做额外的处理。
 
-### 安全
+- 多路复用，减少tcp的连接
+- 压缩标头，
+- 服务端推送
+
+## 安全
 
 add_header 用于在http状态码非20x 或者 30x的时候向http response header添加字段，如果用了always参数，则会无视状态码。
 
@@ -462,19 +465,19 @@ $variables 为map定义的变量，根据content-type值变化。
 
 ```conf 
 http {
-  # Content-Security-Policy减少跨站脚本和内容注入的攻击风险
-  add_header Content-Security-Policy $content_security_policy always;
+  # Content-Security-Policy减少跨站脚本和内容注入的攻击风险，只允许本站的脚本和其他资源运行加载
+  add_header Content-Security-Policy "script-src 'self'; object-src 'self'" always;
 
   # No Referrer When Downgrade：仅当发生协议降级（如 HTTPS 页面引入 HTTP 资源，从 HTTPS 页面跳到 HTTP 等）时不发送 Referrer 信息。这个规则是现在大部分浏览器默认所采用的；
   add_header Referrer-Policy $referrer_policy always;
 
-  # 它告诉浏览器只能通过HTTPS访问当前资源，而不是HTTP
+  # 它告诉浏览器所有的子域只能通过HTTPS访问当前资源，而不是HTTP
   add_header Strict-Transport-Security "max-age=16070400; includeSubDomains" always;
 
   # X-Content-Type-Options 响应首部相当于一个提示标志，被服务器用来提示客户端一定要遵循在 Content-Type 首部中对  MIME 类型 的设定，而不能对其进行修改。这就禁用了客户端的 MIME 类型嗅探行为
   add_header X-Content-Type-Options nosniff always;
 
-  #  X-Frame-Options HTTP 响应头是用来给浏览器指示允许一个页面可否在 <frame>, <iframe> 或者 <object> 中展现的标记。DENY 表示该页面不允许在 frame 中展示，即便是在相同域名的页面中嵌套也不允许。
+  #  X-Frame-Options HTTP 响应头是用来给浏览器指示允许一个页面可否在 <frame>, <iframe> 或者 <object> 中展现的标记。DENY 表示该页面不允许在 frame 中展示，即便是在相同域名的页面中嵌套也不允许。该header可用于防止点击劫持
   add_header X-Frame-Options $x_frame_options always;
 
   #  X-XSS-Protection 响应头是Internet Explorer，Chrome和Safari的一个功能，当检测到跨站脚本攻击 (XSS)时，浏览器将停止加载页面。
@@ -483,7 +486,7 @@ http {
 }
 
 http {
-  # 关闭 response header中的Server字段中的`Nginx`标识。避免攻击
+  # 表明是否展示response header中的Server字段中的`nginx`版本号信息。
   server_tokens off;
 }
 
@@ -495,8 +498,24 @@ server {
 }
 ```
 
-### 跨域
+## 跨域CORS
 
+> 跨域资源共享标准新增了一组 HTTP 首部字段，允许服务器声明哪些源站通过浏览器有权限访问哪些资源。另外，规范要求，对那些可能对服务器数据产生副作用的 HTTP 请求方法（特别是 GET 以外的 HTTP 请求，或者搭配某些 MIME 类型的 POST 请求），浏览器必须首先使用 OPTIONS 方法发起一个预检请求（preflight request），从而获知服务端是否允许该跨域请求。服务器确认允许之后，才发起实际的 HTTP 请求。在预检请求的返回中，服务器端也可以通知客户端，是否需要携带身份凭证（包括 Cookies 和 HTTP 认证相关数据）。"预检请求“的使用，可以避免跨域请求对服务器的用户数据产生未预期的影响。
+
+其他CORSheader的含义：
+
+Access-Control-Allow-Methods: POST, GET, OPTIONS
+Access-Control-Allow-Headers: X-PINGOTHER, Content-Type
+Access-Control-Max-Age: 86400
+Access-Control-Allow-Credentials: true
+
+首部字段 Access-Control-Allow-Methods 表明服务器允许客户端使用 POST, GET 和 OPTIONS 方法发起请求。该字段与 HTTP/1.1 Allow: response header 类似，但仅限于在需要访问控制的场景中使用。
+
+首部字段 Access-Control-Allow-Headers 表明服务器允许请求中携带字段 X-PINGOTHER 与 Content-Type。与 Access-Control-Allow-Methods 一样，Access-Control-Allow-Headers 的值为逗号分割的列表。
+
+最后，首部字段 Access-Control-Max-Age 表明该响应的有效时间为 86400 秒，也就是 24 小时。在有效时间内，浏览器无须为同一请求再次发起预检请求。请注意，浏览器自身维护了一个最大有效时间，如果该首部字段的值超过了最大有效时间，将不会生效。
+
+Access-Control-Allow-Credentials表示是否允许客户端发送cookie等身份认证信息，表示如果服务端的响应中缺失 Access-Control-Allow-Credentials: true信息，则浏览器不会将响应内容返回给请求的发起者。
 
 ```conf
 http {
@@ -528,28 +547,102 @@ http {
 
   add_header Access-Control-Allow-Origin $cors;
 }
+
+#
+# Wide-open CORS config for nginx
+#
+location / {
+  if ($request_method = 'OPTIONS') {
+    add_header 'Access-Control-Allow-Origin' '*';
+    add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS';
+    #
+    # Custom headers and headers various browsers *should* be OK with but aren't
+    #
+    add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range';
+    #
+    # Tell client that this pre-flight info is valid for 20 days
+    #
+    add_header 'Access-Control-Max-Age' 1728000;
+    add_header 'Content-Type' 'text/plain; charset=utf-8';
+    add_header 'Content-Length' 0;
+    return 204;
+  }
+  if ($request_method = 'POST') {
+    add_header 'Access-Control-Allow-Origin' '*';
+    add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS';
+    add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range';
+    add_header 'Access-Control-Expose-Headers' 'Content-Length,Content-Range';
+  }
+  if ($request_method = 'GET') {
+    add_header 'Access-Control-Allow-Origin' '*';
+    add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS';
+    add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range';
+    add_header 'Access-Control-Expose-Headers' 'Content-Length,Content-Range';
+  }
+}
 ```
 
-### 代理
+## 代理
 
 ```conf
 server {
   listen       80;
   server_name  fe.server.com;
-  location / {
-    proxy_pass dev.server.com;
+  location /remoteapp {
+    proxy_set_header   Host             $host:$server_port;
+    proxy_set_header   X-Real-IP        $remote_addr;
+    proxy_set_header   X-Forwarded-For  $proxy_add_x_forwarded_for;
+    proxy_pass http://remoteAPIServer/;
+  }
+
+  location /api/v1/ {
+    proxy_pass https://remoteAPIServer/api/v1/;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection 'upgrade';
+    proxy_set_header Host $host;
+    proxy_cache_bypass $http_upgrade;
+    proxy_redirect http:// https://;
   }
 }
 ```
 
-### 压缩
+proxy_pass将会把你的请求发送到对应的被代理的服务器上。
+proxy_set_header: 设置发送到服务器上的额外header.
+proxy_redirect: 代理重定向，将服务器上的重定向修改为https之后返回给客户端。
+
+### websocket 代理
 
 ```conf
-# Enable gzip compression.
-# Default: off
+http {
+  map $http_upgrade $connection_upgrade {
+      default upgrade;
+      '' close;
+  }
+  # real websocket server
+  upstream websocket {
+      server 192.168.100.10:8010;
+  }
+  server {
+      listen 8020;
+      location / {
+          proxy_pass http://websocket;
+          proxy_http_version 1.1;
+          # enable NGINX to properly handle the WebSocket protocol.
+          proxy_set_header Upgrade $http_upgrade;
+          proxy_set_header Connection $connection_upgrade;
+      }
+  }
+}
+```
+
+## 压缩
+
+```conf
+# 开启gzip压缩
 gzip on;
 
-# Compression level (1-9).
+# 压缩级别 (1-9).
 # 5 is a perfect compromise between size and CPU usage, offering about
 # 75% reduction for most ASCII files (almost identical to level 9).
 # Default: 1
@@ -558,6 +651,7 @@ gzip_comp_level 5;
 # Don't compress anything that's already small and unlikely to shrink much
 # if at all (the default is 20 bytes, which is bad as that usually leads to
 # larger files after gzipping).
+# 最小的可压缩数据，默认是20，通常会压缩出更大的数据，所以限制为256
 # Default: 20
 gzip_min_length 256;
 
@@ -573,7 +667,7 @@ gzip_proxied any;
 # Default: off
 gzip_vary on;
 
-# Compress all output labeled with one of the following MIME-types.
+# 压缩的数据类型。
 # text/html is always compressed by gzip module.
 # Default: text/html
 gzip_types
@@ -606,8 +700,7 @@ gzip_types
   text/x-cross-domain-policy;
 ```
 
-### 缓存
-
+## 缓存
 
 ```conf
 map $sent_http_content_type $expires {
@@ -686,10 +779,29 @@ map $sent_http_content_type $expires {
 expires $expires;
 ```
 
-### 负载均衡
+expires 用于开启或禁止`Expires`和`Cache-Control`响应头，且只能在http状态码为200, 201 (1.3.10), 204, 206, 301, 302, 303, 304, 307 (1.1.16, 1.0.13), or 308 (1.13.0)时生效，参数可以为正数或者负数。
 
-### 日志
+header中Expires的值是由指定的时间和当前时间相加得到。 Cache-Control的值取决于指定的时间，如果时间为负，则cache-control被设置为no-cache，如果为0或者正数，则设置为max-age为该时间。
 
+
+### 常用的其它时间单位
+
+ms  # 毫秒
+s   # 秒
+m   # 分钟
+h   # 小时
+d   # 天
+w   # 星期
+M   # 月(30d)
+y   # 年(365d)
+
+
+## 日志
+
+
+常用的日志用access_log, error_log.
+
+可以定义不同的日志格式为不同的日志类型使用：
 
 ```conf
 # Default main log format from nginx repository:
@@ -737,11 +849,145 @@ log_format debug-level-2
 
 ```
 
-### 工具
+## 最佳实践
 
-[nginx config 生成器](https://nginxconfig.io/)
-[nginx 配置分析](https://nginxconfig.io/)
-[nginx 日志分析](https://nginxconfig.io/)
-[nginx 性能分析](https://nginxconfig.io/)
+- 用include来组织你的配置文件
+- 分别监听80和443端口
+- 阻止未定义server names的请求连接
 
-### 最佳实践
+```conf
+# Place it at the beginning of the configuration file to prevent mistakes.
+server {
+
+  # Add default_server to your listen directive in the server that you want to act as the default.
+  listen 10.240.20.2:443 default_server ssl;
+
+  # We catch invalid domain names, requests without the "Host" header and all others (also due to the above setting).
+  server_name _ "" default_server;
+
+  ...
+
+  return 444;
+
+  # We can also serve:
+  # location / {
+
+    # static file (error page):
+    # root /etc/nginx/error-pages/404;
+    # or redirect:
+    # return 301 https://badssl.com;
+
+    # return 444;
+
+  # }
+
+}
+```
+
+- 通过map来定义大量的重定向
+
+```conf
+map $http_user_agent $device_redirect {
+
+  default "desktop";
+
+  ~(?i)ip(hone|od) "mobile";
+  ~(?i)android.*(mobile|mini) "mobile";
+  ~Mobile.+Firefox "mobile";
+  ~^HTC "mobile";
+  ~Fennec "mobile";
+  ~IEMobile "mobile";
+  ~BB10 "mobile";
+  ~SymbianOS.*AppleWebKit "mobile";
+  ~Opera\sMobi "mobile";
+
+}
+# 将来自移动端的请求重定向到移动站点
+if ($device_redirect = "mobile") {
+  return 301 https://m.domain.com$request_uri;
+}
+```
+
+- 尽量在server全局内使用root指令而不是为每个location block分别使用root
+
+- 通过设置ssl_session_cache来减少多次ssl握手带来的额外时间和资源消耗
+
+```conf
+ssl_session_cache shared:SSL:10m;
+ssl_session_timeout 24h;
+ssl_session_tickets off;
+ssl_buffer_size 1400;
+```
+
+- 用无特权的用户来运行nginx，但需要保证该用户拥有nginx运行所需要的权限，例如读写日志文件。
+
+但是主进程必须由root来启动，因为一般来说只有root用户才能监听小于1024的端口号（例如常用的80或者443端口）
+
+```conf
+# Edit nginx.conf:
+user www-data;
+
+# Set owner and group for root (app, default) directory:
+chown -R www-data:www-data /var/www/domain.com
+```
+
+- 保护敏感资源的权限不能被外部的请求随意读取
+
+```conf
+if ($request_uri ~ "/\.git") {
+  return 403;
+}
+
+# or
+location ~ /\.git {
+  deny all;
+}
+
+# or
+location ~* ^.*(\.(?:git|svn|htaccess))$ {
+  return 403;
+}
+
+# or all . directories/files excepted .well-known
+location ~ /\.(?!well-known\/) {
+  deny all;
+}
+```
+
+- 隐藏上游服务器的敏感header
+
+```conf
+proxy_hide_header X-Powered-By;
+proxy_hide_header X-AspNetMvc-Version;
+proxy_hide_header X-AspNet-Version;
+proxy_hide_header X-Drupal-Cache;
+```
+
+- 只允许TSL(1.2+)协议的ssl握手连接。因为ssl协议以及TSL1.0都存在安全漏洞。TSL1.0以及TS1.1协议都会被在2020年从浏览器中移除。
+
+```conf
+ssl_protocols TLSv1.2;
+
+# For TLS 1.3
+ssl_protocols TLSv1.2 TLSv1.3;
+```
+
+
+## 工具
+
+- [nginx config 生成器](https://nginxconfig.io/)
+- [nginx 配置分析](https://github.com/yandex/gixy)
+- [nginx 日志分析](https://goaccess.io/)
+- [nginx 性能分析](https://github.com/lebinh/ngxtop)
+
+## reference
+
+https://github.com/trimstray/nginx-quick-reference#online-tools
+
+https://github.com/h5bp/server-configs-nginx
+
+https://github.com/fcambus/nginx-resources
+
+[understanding-the-nginx-configuration-file-structure-and-configuration-contexts](https://www.digitalocean.com/community/tutorials/understanding-the-nginx-configuration-file-structure-and-configuration-contexts)
+
+[What is HTTP/2 – The Ultimate Guide](https://kinsta.com/learn/what-is-http2/)
