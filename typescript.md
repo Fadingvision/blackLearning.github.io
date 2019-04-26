@@ -1,6 +1,6 @@
-## TypeScirpt 初体验
+# TypeScirpt 初体验
 
-#### 基础类型:
+### 基础类型:
 
 * Boolean
 * Number
@@ -15,7 +15,7 @@
 * Void
 * Never
 
-#### Interfaces
+### Interfaces
 
 * optional properties
 
@@ -55,7 +55,7 @@ square.sideLength = 10;
 square.penWidth = 5.0;
 ```
 
-#### Generics
+### Generics
 
 * 泛型函数
 
@@ -123,7 +123,7 @@ function loggingIdentity<T extends Lengthwise>(arg: T): T {
 }
 ```
 
-#### 枚举
+### 枚举
 
 枚举用来定义一种常量类型，帮助使用这个枚举中的值，可以有效的避免硬编码，
 并且当使用了超出枚举范围内的值时，方便的提示错误。
@@ -149,7 +149,7 @@ isSucess[no] // 0
 ```
 
 
-#### 类型进阶
+### 类型进阶
 
 
 * 使用 & 来组合类型
@@ -208,6 +208,138 @@ function getName(n: NameOrResolver): Name {
 }
 ```
 
+### Types vs Interface
 
-#### .d.ts
+types在声明联合类型时很有用，而Interface能更好的用于声明字典类型，以便后续的`实现`和`继承`。
+
+类型工具：
+
+- Omit: 从类型中移除某个属性
+- Partial: 允许使用类型中的部分类型
+- typeof: 从变量中读出其类型(通常由ts推断得出)
+- &: 交叉类型
+- |: 联合类型
+- as: 类型推断(当你比ts编译器更懂该变量的类型时，可以强制指定该变量的类型，防止编译报错)
+- declare module: 可以用于为第三方模块添加类型, 或者覆盖第三方的类型
+
+```ts
+// my-typings.ts
+declare module 'plotly.js' {
+  interface PlotlyHTMLElement {
+    removeAllListeners(): void;
+  }
+}
+
+// MyComponent.tsx
+import { PlotlyHTMLElement } from 'plotly.js';
+import './my-typings';
+const f = (e: PlotlyHTMLElement) => {
+  e.removeAllListeners();
+};
+```
+
+
+### .d.ts
+
+## React + TS
+
+常用的React+ts应用:
+
+```tsx
+import React, { Component, useState, useRef } from 'react';
+import logo from './logo.svg';
+import './App.css';
+
+interface HelloProps {
+  message: string;
+}
+
+interface AsyncTask {
+  (aPromise: Promise<any>) : Promise<any>;
+}
+
+
+// custom hook
+export function useLoading() {
+  const [isLoading, setState] = useState(false);
+  const load: AsyncTask = (asyncTask) => {
+    setState(true);
+    return asyncTask.finally(() => setState(false));
+  }
+  // 当一个数组有两种类型的时候，为了避免类型推断，这里显式定义类型。
+  return [isLoading, load] as [boolean, AsyncTask];
+}
+
+
+// 语法更冗长，但是没有突出的优点，优先使用普通函数语法。
+const HelloWorld: React.FunctionComponent<HelloProps> = (props) => {
+
+  const [val, toggle] = useState(false); 
+  const inputRef = useRef<HTMLInputElement | null>(null); 
+
+
+  return <div>
+    <input type="text" ref={inputRef} />
+    <span onClick={() => inputRef.current && inputRef.current.focus()}>{props.message}</span>
+  </div>;
+}
+
+// 为app.props声明defaultProps和其他props的联合类型
+type AppProps = typeof App.defaultProps & {
+  prefix?: string,
+}
+
+// 这里forwardRef是一个泛型函数，
+// 第一个泛型参数标识接收的组件类型是一个函数式组件，并且它的类型必须是HTMLButtonElement
+// 第二个泛型参数限制了该组件的props, propTypes, defaultProps必须是ButtonProps类型
+// 两个参数同时限制了返回的组件的props(如果不为空)必须是HTMLButtonElement类型的ref属性和ButtonProps的属性
+type ButtonProps = React.PropsWithChildren<{ type: 'submit' | 'button' }>;
+const FancyButton = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  (props, ref) => (
+    <button ref={ref} type={props.type}>
+      {props.children}
+    </button>
+  )
+);
+
+class App extends Component<AppProps> {
+  private buttonRef = React.createRef<HTMLButtonElement>();
+
+  static defaultProps = {
+    name: 'world'
+  }
+
+  // 自动bind this, 声明该函数是一个MouseEventHandler, 并且e.target是HTMLAnchorElement
+  onClick: React.MouseEventHandler<HTMLAnchorElement> = e => {
+    this.setState({});
+  }
+
+  render() {
+    return (
+      <div className="App">
+        <header className="App-header">
+          <img src={logo} className="App-logo" alt="logo" />
+          <HelloWorld message="123" />
+          <a
+            className="App-link"
+            onClick={this.onClick}
+            href="https://reactjs.org"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <FancyButton type="button" ref={this.buttonRef}>
+              Learn React
+            </FancyButton>
+          </a>
+        </header>
+      </div>
+    );
+  }
+}
+
+export default App;
+```
+
+
+
 
