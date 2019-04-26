@@ -1,4 +1,4 @@
-# TypeScirpt 初体验
+# TypeScirpt 小记
 
 ### 基础类型:
 
@@ -17,6 +17,8 @@
 
 ### Interfaces
 
+所有的相同的Interface的声明都会最终合并在一起，因此如果你想在一个已经声明了的Interface上继续添加属性的话，可以继续声明该Interface即可。
+
 * optional properties
 
 `x?: Number;`
@@ -27,6 +29,8 @@
 `ReadonlyArray<T>`
 
 * function types
+
+表示一个可被调用的类型注解
 
 ```typescript
 interface SearchFunc {
@@ -56,6 +60,10 @@ square.penWidth = 5.0;
 ```
 
 ### Generics
+
+泛型是在定义一个类型或者接口的时候，我们不知道其中某些参数的具体类型，但是又想对其进行某种约束，这时候就可以用泛型(常常是一个大写字母)来代替表示该类型。T或者任意的大写字母被叫做泛型模板，会在运行时而不是编译时被代替。
+
+当你使用简单的泛型时，泛型常用 T、U、V 表示。如果在你的参数里，不止拥有一个泛型，你应该使用一个更语义化名称，如 TKey 和 TValue （通常情况下，以 T 做为泛型前缀也在如 C++ 的其他语言里做为模版。）
 
 * 泛型函数
 
@@ -148,16 +156,20 @@ isSucess[no] // 0
 
 ```
 
+常量枚举：
+
+```ts
+const enum Tristate {
+  False,
+  True,
+  Unknown
+}
+
+const lie = Tristate.False; // goes => const lie = 0;
+```
+
 
 ### 类型进阶
-
-
-* 使用 & 来组合类型
-* 使用 number | string | boolean 来表明几种类型之一
-
-```
-let personProps: keyof Person; // 'name' | 'age'
-```
 
 * 类型断言：
 
@@ -171,6 +183,10 @@ else {
     (<Bird>pet).fly();
 }
 ```
+然而，当你在 JSX 中使用 <Fish> 的断言语法时，这会与 JSX 的语法存在歧义：
+
+因此可以使用`(pet as Fly).fly()`的as语法来断言。
+
 
 * 类型守护：
 
@@ -219,6 +235,32 @@ types在声明联合类型时很有用，而Interface能更好的用于声明字
 - typeof: 从变量中读出其类型(通常由ts推断得出)
 - &: 交叉类型
 - |: 联合类型
+
+从数组中自动生成联合类型：
+
+```ts
+// 用于创建字符串列表映射至 `K: V` 的函数
+function strEnum<T extends string>(o: Array<T>): { [K in T]: K } {
+  return o.reduce((res, key) => {
+    res[key] = key;
+    return res;
+  }, Object.create(null));
+}
+
+// 创建 K: V
+const Direction = strEnum(['North', 'South', 'East', 'West']);
+
+// 创建一个类型
+type Direction = keyof typeof Direction;
+
+// 简单的使用
+let sample: Direction;
+
+sample = Direction.North; // Okay
+sample = 'North'; // Okay
+sample = 'AnythingElse'; // ERROR!
+```
+
 - as: 类型推断(当你比ts编译器更懂该变量的类型时，可以强制指定该变量的类型，防止编译报错)
 - declare module: 可以用于为第三方模块添加类型, 或者覆盖第三方的类型
 
