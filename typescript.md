@@ -2,55 +2,55 @@
 
 ### 基础类型:
 
-* Boolean
-* Number
-* String
-* Array
-* Object
-* Null
-* Undefined
-* Tuple: 可以知道数组内不同元素的类型的数组.
-* Enum
-* Any
-* Void
-* Never
+-   Boolean
+-   Number
+-   String
+-   Array
+-   Object
+-   Null
+-   Undefined
+-   Tuple: 可以知道数组内不同元素的类型的数组.
+-   Enum
+-   Any
+-   Void
+-   Never
 
 ### Interfaces
 
-所有的相同的Interface的声明都会最终合并在一起，因此如果你想在一个已经声明了的Interface上继续添加属性的话，可以继续声明该Interface即可。
+所有的相同的 Interface 的声明都会最终合并在一起，因此如果你想在一个已经声明了的 Interface 上继续添加属性的话，可以继续声明该 Interface 即可。
 
-* optional properties
+-   optional properties
 
 `x?: Number;`
 
-* readonly properties: 属性使用 readonly, 变量使用`const`
+-   readonly properties: 属性使用 readonly, 变量使用`const`
 
 `readyonly x: Number;`
 `ReadonlyArray<T>`
 
-* function types
+-   function types
 
 表示一个可被调用的类型注解
 
 ```typescript
 interface SearchFunc {
-  (source: string, subString: string): boolean;
+    (source: string, subString: string): boolean;
 }
 ```
 
-* class Types
+-   class Types
 
 ```ts
 interface Shape {
-  color: string;
+    color: string;
 }
 
 interface PenStroke {
-  penWidth: number;
+    penWidth: number;
 }
 
 interface Square extends Shape, PenStroke {
-  sideLength: number;
+    sideLength: number;
 }
 
 let square = <Square>{};
@@ -61,46 +61,46 @@ square.penWidth = 5.0;
 
 ### Generics
 
-泛型是在定义一个类型或者接口的时候，我们不知道其中某些参数的具体类型，但是又想对其进行某种约束，这时候就可以用泛型(常常是一个大写字母)来代替表示该类型。T或者任意的大写字母被叫做泛型模板，会在运行时而不是编译时被代替。
+泛型是在定义一个类型或者接口的时候，我们不知道其中某些参数的具体类型，但是又想对其进行某种约束，这时候就可以用泛型(常常是一个大写字母)来代替表示该类型。T 或者任意的大写字母被叫做泛型模板，会在运行时而不是编译时被代替。
 
 当你使用简单的泛型时，泛型常用 T、U、V 表示。如果在你的参数里，不止拥有一个泛型，你应该使用一个更语义化名称，如 TKey 和 TValue （通常情况下，以 T 做为泛型前缀也在如 C++ 的其他语言里做为模版。）
 
-* 泛型函数
+-   泛型函数
 
 ```ts
 function identity(arg: T): T {
-  return arg;
+    return arg;
 }
 
 // 可选：把类型作为参数，从而指定该函数的参数和返回值都必须是该类型。
 function identity<T>(arg: T): T {
-  return arg;
+    return arg;
 }
 
 // 传入string作为类型，从而指定该函数的参数和返回值都必须是字符串。
 let output = identity<string>('myString');
 ```
 
-* 泛型 interface
+-   泛型 interface
 
 ```ts
 interface GenericIdentityFn {
-  <T>(arg: T): T;
+    <T>(arg: T): T;
 }
 
 // 把类型参数提到interface层面可以当参数传入
 interface GenericIdentityFn<T> {
-  (arg: T): T;
+    (arg: T): T;
 }
 
 function identity<T>(arg: T): T {
-  return arg;
+    return arg;
 }
 
 let myIdentity: GenericIdentityFn<number> = identity;
 ```
 
-* 泛型类
+-   泛型类
 
 泛型类和泛型 interface 类似：
 
@@ -138,113 +138,137 @@ function loggingIdentity<T extends Lengthwise>(arg: T): T {
 
 ```ts
 enum Response {
-  No = 0,
-  Yes = 1,
+    No = 0,
+    Yes = 1
 }
 ```
+
 反向隐射：
 
 ```ts
-
 enum isSuccess {
-  0 = 'no',
-  1 = 'yes'
-};
+    0 = 'no',
+    1 = 'yes'
+}
 
-isSucess[0] // no
-isSucess[no] // 0
-
+isSucess[0]; // no
+isSucess[no]; // 0
 ```
 
 常量枚举：
 
 ```ts
 const enum Tristate {
-  False,
-  True,
-  Unknown
+    False,
+    True,
+    Unknown
 }
 
 const lie = Tristate.False; // goes => const lie = 0;
 ```
 
-
 ### 类型进阶
 
-* 类型断言：
+-   类型断言：
 
 ```ts
 let pet = getSmallPet();
 // 当不能确定一个变量的类型，需要对变量类型进行断言，这样ts才不会抛出错误
 if ((<Fish>pet).swim) {
     (<Fish>pet).swim();
-}
-else {
+} else {
     (<Bird>pet).fly();
 }
 ```
+
 然而，当你在 JSX 中使用 <Fish> 的断言语法时，这会与 JSX 的语法存在歧义：
 
-因此可以使用`(pet as Fly).fly()`的as语法来断言。
+因此可以使用`(pet as Fly).fly()`的 as 语法来断言。
 
-
-* 类型守护：
+-   类型守护：
 
 ```ts
-
 function isFish(pet: Fish | Bird): pet is Fish {
-  return (<Fish>pet).swim !== undefined;
+    return (<Fish>pet).swim !== undefined;
 }
 
 function padLeft(value: string, padding: string | number) {
-  if (isNumber(padding)) {
-      return Array(padding + 1).join(" ") + value;
-  }
-  if (isString(padding)) {
-      return padding + value;
-  }
-  throw new Error(`Expected string or number, got '${padding}'.`);
+    if (isNumber(padding)) {
+        return Array(padding + 1).join(' ') + value;
+    }
+    if (isString(padding)) {
+        return padding + value;
+    }
+    throw new Error(`Expected string or number, got '${padding}'.`);
 }
 ```
 
-
-* 类型别名
+-   类型别名
 
 ```ts
 type Name = string;
 type NameResolver = () => string;
 type NameOrResolver = Name | NameResolver;
 function getName(n: NameOrResolver): Name {
-    if (typeof n === "string") {
+    if (typeof n === 'string') {
         return n;
-    }
-    else {
+    } else {
         return n();
     }
 }
 ```
 
-### Types vs Interface
+### 类型工具：
 
-types在声明联合类型时很有用，而Interface能更好的用于声明字典类型，以便后续的`实现`和`继承`。
+-   extends
 
-类型工具：
+```ts
+T extends U ? X : Y
+```
 
-- Omit: 从类型中移除某个属性
-- Partial: 允许使用类型中的部分类型
-- typeof: 从变量中读出其类型(通常由ts推断得出)
-- &: 交叉类型
-- |: 联合类型
+如果 T 类型可以赋值给 U 类型（要么 T 和 U 是同一种基础类型，要么 U 类型中所有的属性都能在 T 中找到，也就是 T 是 U 的超集，U 是 T 的子集），则取 X, 否则取 Y;
+
+-   typeof: 从变量中读出其类型(通常由 ts 推断得出)
+
+这允许你告诉编译器，一个变量的类型与其他类型相同
+
+```ts
+let foo = 123;
+let bar: typeof foo; // 'bar' 类型与 'foo' 类型相同（在这里是： 'number'）
+
+bar = 456; // ok
+bar = '789'; // Error: 'string' 不能分配给 'number' 类型
+```
+
+-   keyof: 捕获键的名称
+
+keyof 操作符能让你捕获一个类型的键。例如，你可以使用它来捕获变量的键名称，在通过使用 typeof 来获取类型之后：
+
+```ts
+const colors = {
+    red: 'red',
+    blue: 'blue'
+};
+
+type Colors = keyof typeof colors;
+
+let color: Colors; // color 的类型是 'red' | 'blue'
+```
+
+-   Omit: 从类型中移除某个属性
+-   Partial: 允许使用类型中的部分类型
+-   &: 交叉类型
+-   |: 联合类型
 
 从数组中自动生成联合类型：
 
 ```ts
 // 用于创建字符串列表映射至 `K: V` 的函数
 function strEnum<T extends string>(o: Array<T>): { [K in T]: K } {
-  return o.reduce((res, key) => {
-    res[key] = key;
-    return res;
-  }, Object.create(null));
+    return o.reduce((res, key) => {
+        res[key] = key;
+        return res;
+    }, Object.create(null));
 }
 
 // 创建 K: V
@@ -261,31 +285,32 @@ sample = 'North'; // Okay
 sample = 'AnythingElse'; // ERROR!
 ```
 
-- as: 类型推断(当你比ts编译器更懂该变量的类型时，可以强制指定该变量的类型，防止编译报错)
-- declare module: 可以用于为第三方模块添加类型, 或者覆盖第三方的类型
+-   as: 类型推断(当你比 ts 编译器更懂该变量的类型时，可以强制指定该变量的类型，防止编译报错)
+-   declare module: 可以用于为第三方模块添加类型, 或者覆盖第三方的类型
 
 ```ts
 // my-typings.ts
 declare module 'plotly.js' {
-  interface PlotlyHTMLElement {
-    removeAllListeners(): void;
-  }
+    interface PlotlyHTMLElement {
+        removeAllListeners(): void;
+    }
 }
 
 // MyComponent.tsx
 import { PlotlyHTMLElement } from 'plotly.js';
 import './my-typings';
 const f = (e: PlotlyHTMLElement) => {
-  e.removeAllListeners();
+    e.removeAllListeners();
 };
 ```
 
+更多工具类型参考：[utility-types](https://github.com/piotrwitek/utility-types)
 
 ### .d.ts
 
 ## React + TS
 
-常用的React+ts应用:
+常用的 React+ts 应用:
 
 ```tsx
 import React, { Component, useState, useRef } from 'react';
@@ -293,43 +318,43 @@ import logo from './logo.svg';
 import './App.css';
 
 interface HelloProps {
-  message: string;
+    message: string;
 }
 
 interface AsyncTask {
-  (aPromise: Promise<any>) : Promise<any>;
+    (aPromise: Promise<any>): Promise<any>;
 }
-
 
 // custom hook
 export function useLoading() {
-  const [isLoading, setState] = useState(false);
-  const load: AsyncTask = (asyncTask) => {
-    setState(true);
-    return asyncTask.finally(() => setState(false));
-  }
-  // 当一个数组有两种类型的时候，为了避免类型推断，这里显式定义类型。
-  return [isLoading, load] as [boolean, AsyncTask];
+    const [isLoading, setState] = useState(false);
+    const load: AsyncTask = asyncTask => {
+        setState(true);
+        return asyncTask.finally(() => setState(false));
+    };
+    // 当一个数组有两种类型的时候，为了避免类型推断，这里显式定义类型。
+    return [isLoading, load] as [boolean, AsyncTask];
 }
-
 
 // 语法更冗长，但是没有突出的优点，优先使用普通函数语法。
-const HelloWorld: React.FunctionComponent<HelloProps> = (props) => {
+const HelloWorld: React.FunctionComponent<HelloProps> = props => {
+    const [val, toggle] = useState(false);
+    const inputRef = useRef<HTMLInputElement | null>(null);
 
-  const [val, toggle] = useState(false); 
-  const inputRef = useRef<HTMLInputElement | null>(null); 
-
-
-  return <div>
-    <input type="text" ref={inputRef} />
-    <span onClick={() => inputRef.current && inputRef.current.focus()}>{props.message}</span>
-  </div>;
-}
+    return (
+        <div>
+            <input type="text" ref={inputRef} />
+            <span onClick={() => inputRef.current && inputRef.current.focus()}>
+                {props.message}
+            </span>
+        </div>
+    );
+};
 
 // 为app.props声明defaultProps和其他props的联合类型
 type AppProps = typeof App.defaultProps & {
-  prefix?: string,
-}
+    prefix?: string;
+};
 
 // 这里forwardRef是一个泛型函数，
 // 第一个泛型参数标识接收的组件类型是一个函数式组件，并且它的类型必须是HTMLButtonElement
@@ -337,51 +362,51 @@ type AppProps = typeof App.defaultProps & {
 // 两个参数同时限制了返回的组件的props(如果不为空)必须是HTMLButtonElement类型的ref属性和ButtonProps的属性
 type ButtonProps = React.PropsWithChildren<{ type: 'submit' | 'button' }>;
 const FancyButton = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  (props, ref) => (
-    <button ref={ref} type={props.type}>
-      {props.children}
-    </button>
-  )
+    (props, ref) => (
+        <button ref={ref} type={props.type}>
+            {props.children}
+        </button>
+    )
 );
 
 class App extends Component<AppProps> {
-  private buttonRef = React.createRef<HTMLButtonElement>();
+    private buttonRef = React.createRef<HTMLButtonElement>();
 
-  static defaultProps = {
-    name: 'world'
-  }
+    static defaultProps = {
+        name: 'world'
+    };
 
-  // 自动bind this, 声明该函数是一个MouseEventHandler, 并且e.target是HTMLAnchorElement
-  onClick: React.MouseEventHandler<HTMLAnchorElement> = e => {
-    this.setState({});
-  }
+    // 自动bind this, 声明该函数是一个MouseEventHandler, 并且e.target是HTMLAnchorElement
+    onClick: React.MouseEventHandler<HTMLAnchorElement> = e => {
+        this.setState({});
+    };
 
-  render() {
-    return (
-      <div className="App">
-        <header className="App-header">
-          <img src={logo} className="App-logo" alt="logo" />
-          <HelloWorld message="123" />
-          <a
-            className="App-link"
-            onClick={this.onClick}
-            href="https://reactjs.org"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <FancyButton type="button" ref={this.buttonRef}>
-              Learn React
-            </FancyButton>
-          </a>
-        </header>
-      </div>
-    );
-  }
+    render() {
+        return (
+            <div className="App">
+                <header className="App-header">
+                    <img src={logo} className="App-logo" alt="logo" />
+                    <HelloWorld message="123" />
+                    <a
+                        className="App-link"
+                        onClick={this.onClick}
+                        href="https://reactjs.org"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        <FancyButton type="button" ref={this.buttonRef}>
+                            Learn React
+                        </FancyButton>
+                    </a>
+                </header>
+            </div>
+        );
+    }
 }
 
 export default App;
 ```
 
+### Refrence
 
-
-
+[React & Redux in TypeScript - Static Typing Guide](https://github.com/piotrwitek/react-redux-typescript-guide)
