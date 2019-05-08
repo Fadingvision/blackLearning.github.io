@@ -5,6 +5,7 @@
 -   Boolean
 -   Number
 -   String
+-   symbol
 -   Array
 -   Object
 -   Null
@@ -18,6 +19,8 @@
 ### Interfaces
 
 所有的相同的 Interface 的声明都会最终合并在一起，因此如果你想在一个已经声明了的 Interface 上继续添加属性的话，可以继续声明该 Interface 即可。
+
+ts的类型是基于结构的类型，也就是说即使两个参数的类型不同，但是如果他们的类型结构是一样，他们也可以互相赋值。
 
 -   optional properties
 
@@ -98,6 +101,24 @@ function identity<T>(arg: T): T {
 }
 
 let myIdentity: GenericIdentityFn<number> = identity;
+```
+
+有时在使用泛型参数的时候，也可以省略该参数，让ts为我们自动推导出T的类型。
+
+泛型参数同样可以有默认值。
+
+```ts
+interface GenericIdentityFn<T = string> {
+    (arg: T): T;
+}
+```
+
+泛型约束：也可以规定该泛型必须具有某些类型, 这里可以规定T必须是number或者string类型。
+
+```ts
+function identity<T extends number | string>(arg: T): T {
+    return arg;
+}
 ```
 
 -   泛型类
@@ -226,7 +247,7 @@ function getName(n: NameOrResolver): Name {
 T extends U ? X : Y
 ```
 
-如果 T 类型可以赋值给 U 类型（要么 T 和 U 是同一种基础类型，要么 U 类型中所有的属性都能在 T 中找到，也就是 T 是 U 的超集，U 是 T 的子集），则取 X, 否则取 Y;
+如果 T 类型可以认为是继承于U类型（要么 T 和 U 是同一种基础类型，要么 U 类型中所有的属性都能在 T 中找到，也就是 T 是 U 的超集，U 是 T 的子集），则取 X, 否则取 Y;
 
 -   typeof: 从变量中读出其类型(通常由 ts 推断得出)
 
