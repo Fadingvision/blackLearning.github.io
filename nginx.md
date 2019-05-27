@@ -13,6 +13,30 @@ Core Contexts:
     Mail Context
 ```
 
+### 命令
+
+netstat 可以查看nginx绑定的地址和端口
+
+pstree | grep nginx 可以查看nginx的启动的进程pid, 一般包括master进程和一个或多个worker进程(取决于worker_processes的设置)
+
+master进程一般用于读取执行配置文件, 维护worker进程(创建或者恢复),
+处理子进程的信号, 打开日志文件, 绑定端口等工作.
+
+worker进程用于处理实际的请求和执行master进程的命令, 读写文件, 和上流的代理服务器通信等工作.
+
+kill -QUIT $(cat /var/run/nginx.pid) 可以用来杀死进程.
+
+tail -n 100 -f /path/to/logfile | grep "HTTP/[1-2].[0-1]\" [2]" debug用来从日志中筛选出指定状态码的http请求
+
+### 基本语法
+
+- 用#号来注释内容
+- 每个语句后面必须加`;`
+- 变量以$开头
+- 字符串通常不需要用引号, 除非里面含有空格,分号,大括号等特殊字符
+- 指令语法, 一些指令可以在多个上下文中使用,一般这种指令会存在继承作用,也就是父级上下文的指令会默认传给子级上下文使用
+
+
 ### 全局变量：
 
 - $host: 请信息中的Host，如果请求中没有Host行，则等于设置的服务器名
@@ -27,6 +51,9 @@ Core Contexts:
 - $server_addr服务器地址
 - $server_name: 服务器名称
 - $server_port: 服务器的端口号
+
+
+### 常用的命令
 
 ### main: nginx的全局配置，对全局生效。
 
@@ -259,10 +286,44 @@ location optional_modifier location_match {
 optional_modifier:
 
 - `=`: 完全匹配
+- `^~`: 非正则匹配
 - `~`大小写敏感的正则匹配
 - `~*`: 大小写不敏感的正则匹配
-- `^~`: 非正则匹配
 - `none`: 用request url来进行普通的前缀匹配
+
+
+![location match](https://github.com/trimstray/nginx-admins-handbook/raw/master/static/img/nginx_location_cheatsheet.png)
+
+
+```conf
+location = / {
+  # Matches the query / only.
+  [ configuration A ]
+}
+location / {
+  # Matches any query, since all queries begin with /, but regular
+  # expressions and any longer conventional blocks will be
+  # matched first.
+  [ configuration B ]
+}
+location /documents/ {
+  # Matches any query beginning with /documents/ and continues searching,
+  # so regular expressions will be checked. This will be matched only if
+  # regular expressions don't find a match.
+  [ configuration C ]
+}
+location ^~ /images/ {
+  # Matches any query beginning with /images/ and halts searching,
+  # so regular expressions will not be checked.
+  [ configuration D ]
+}
+location ~* \.(gif|jpg|jpeg)$ {
+  # Matches any request ending in gif, jpg, or jpeg. However, all
+  # requests to the /images/ directory will be handled by
+  # Configuration D.
+  [ configuration E ]
+}
+```
 
 常用指令:
 
@@ -278,6 +339,14 @@ autoindex on | off;
 ```conf
 root /var/www/main;
 try_files $uri $uri.html $uri/ /fallback/index.html;
+```
+
+HTML5 History Mode
+
+```conf
+location / {
+  try_files $uri $uri/ /index.html;
+}
 ```
 
 
@@ -296,6 +365,16 @@ rewrite ^/rewriteme/(.*)$ /$1 last;
 error_page 404             /404.html;
 error_page 500 502 503 504 /50x.html;
 ```
+
+- return
+
+```conf
+return 444;
+return 200 'body content';
+return 301 http://rewrite.com;
+return http://rewrite.com;
+```
+
 
 ### upstream：配置上游的服务（例如nodejs, php, java服务）具体地址，负载均衡配置不可或缺的部分。
 
@@ -801,7 +880,7 @@ y   # 年(365d)
 
 常用的日志用access_log, error_log.
 
-可以定义不同的日志格式为不同的日志类型使用：
+log_format 可以定义不同的日志格式为不同的日志类型使用, 它允许你将不同类型的request信息组合成一行来显示.
 
 ```conf
 # Default main log format from nginx repository:
@@ -849,10 +928,44 @@ log_format debug-level-2
 
 ```
 
+
+$remote_addr 是远端的IP地址
+
+$remote_user 是请求用户名
+
+$time_local 请求的时间
+
+$status 请求的HTTP状态码
+
+$body_bytes_sent 是response的body字节
+
+$http_user_agent 用户客户端的信息
+
+
+一条日志的格式类似如下:
+
+```txt
+201.217.xx.xx - - [01/Oct/2015:08:46:48 -0400] "HEAD /wp-login.php HTTP/1.1" 200 0 "http://wordpress.com/wp-login.php?redirect_to=http%3A%2F%2Fwordpress.com%2Fwp-admin%2F&reauth=1" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/45.0.2454.99 Safari/537.36"
+```
+
+err_log: 
+
+emerg: used for emergency messages when your system may be unstable.
+alert: alert messages of important issues.
+crit: critical problems that need to be taken care of.
+error: used to log errors; something went wrong while serving your page.
+warn: warning messages; may indicate some kind of problem.
+notice: will log notices; most of the time will be useless.
+info: information messages; most of the time not important.
+debug: full debug information; includes all the previous levels.
+
+不同的日志级别会带有不同的错误信息, debug是优先级最高级别, 会带有所有其他的级别错误的所有信息, 依次类推.
+
 ## 最佳实践
 
 - 用include来组织你的配置文件
 - 分别监听80和443端口
+- http => https, www => non-www 
 - 阻止未定义server names的请求连接
 
 ```conf
