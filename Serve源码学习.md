@@ -283,4 +283,30 @@ if (relatedExists && (yield pathType.dir(related))) {
 }
 ```
 
+# serve-handler
+
+1. 如果是single, 需要将**重定向到/index.html
+2. 处理symlink，软链接
+3. 处理error, 以及process退出的情况
+4. 如果是压缩，使用compress中间件来处理
+5. 如果是copy
+ - macos: bpcopy
+ - linux: xsel
+ - windows: clipboard_i686.exe || clipboard_x86_64.exe
+
+6. 利用public结合cwd来处理path
+----
+
+### serve-handler
+
+handler: {
+  lstat: 获取文件属性（如果是软连接这是软连接自身）
+  realpath: 获取文件的绝对路径
+  createReadStream: ositl.readFile, 获取文件流
+  readdir: 获取文件夹属性
+  sendError: `
+
+  `
+}
+
 
