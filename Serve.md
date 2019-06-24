@@ -304,9 +304,39 @@ handler: {
   realpath: 获取文件的绝对路径
   createReadStream: ositl.readFile, 获取文件流
   readdir: 获取文件夹属性
-  sendError: `
-
+  sendError: 发送错误信息
+  `
+    如果支持json, 则将code,message转为json格式的错误信息发送.
+    尝试去找statusCode.html文件, 如果找到则将其发送
+    否则使用定制的errorTemplate模板发送错误信息
   `
 }
+
+- 将req.url.pathname进行decodeURIComponent得到relativePath,然后和cwd结合得到绝对路径, 同时处理可能产生的错误
+- 检测绝对地址是否在cwd中, 否则抛错
+- 根据配置决定是否去除url中的.html和.htm后缀
+- 根据trailingSlash来决定是否在url上加上/
+- 根据redirects数组来对source和dest路径进行对应的处理(glob 用minmatch, regex用path-to-regex)
+
+- 如果存在重定向,直接301返回
+
+- 如果是个文件夹, 则渲染文件夹页面
+
+- 处理symlink
+- 处理range
+- 处理单个文件, 并加上对应的content-range, content-length, etag, 等header
+```js
+{
+  'Last-Modified': stats.mtime.toUTCString(),
+  'Content-Length': stats.size,
+  // Default to "inline", which always tries to render in the browser,
+  // if that's not working, it will save the file. But to be clear: This
+  // only happens if it cannot find a appropiate value.
+  'Content-Disposition': contentDisposition(base, {
+    type: 'inline'
+  }),
+  'Accept-Ranges': 'bytes'
+}
+```
 
 
