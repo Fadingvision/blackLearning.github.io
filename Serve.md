@@ -322,10 +322,23 @@ handler: {
 
 - 如果是个文件夹, 则渲染文件夹页面
 
+  1. 列出不需要展现的文件和文件夹,例如.git等
+  2. 读取文件夹, 循环
+  3. 标识所有的子文件夹
+  4. 排序
+  5. 返回文件夹列表(json或者定制的文件夹页面)
+
 - 处理symlink
+
+  如果是symlink, 读取真实路径
+
 - 处理range
-- 处理单个文件, 并加上对应的content-range, content-length, etag, 等header
+- 处理单个文件
+- 并加上对应的header
+  为对应的路径加上定制的header
+  
 ```js
+base = path.parse(absolutePath);
 {
   'Last-Modified': stats.mtime.toUTCString(),
   'Content-Length': stats.size,
@@ -335,7 +348,8 @@ handler: {
   'Content-Disposition': contentDisposition(base, {
     type: 'inline'
   }),
-  'Accept-Ranges': 'bytes'
+  'Accept-Ranges': 'bytes',
+  'Content-Type': mime.contentType(base)
 }
 ```
 
