@@ -259,7 +259,7 @@ function getName(n: NameOrResolver): Name {
 T extends U ? X : Y
 ```
 
-如果 T 类型可以认为是继承于U类型（要么 T 和 U 是同一种基础类型，要么 U 类型中所有的属性都能在 T 中找到，也就是 T 是 U 的超集，U 是 T 的子集），则取 X, 否则取 Y;
+如果 T 类型可以认为是继承于U类型（要么 T 和 U 是同一种基础类型，要么 T 类型的代表范围 小于 U类型，也就是 T 是 U 的子集，U 是 T 的超集），则取 X, 否则取 Y;
 
 -   typeof: 从变量中读出其类型(通常由 ts 推断得出)
 
