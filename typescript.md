@@ -1,16 +1,145 @@
 # TypeScirpt 小记
 
-
-
 ## 类型系统比较(type system)
 
 ## 枚举类型，泛型，末班类型，抽象类，虚类
 
 ## ts的AST和实现
 
-## 类型推导
+## 类型兼容, 类型推导, 类型演算
 
-## 花式使用泛型
+- 结构类型(structural typing)
+- 命名类型(nominal typing)
+
+当比较两种数据的时候, 如果比较的是他们的类型结构,则是结构类型, 如果比较的是他们的名字, 则是命名类型.
+
+比如 Java, C++, Swift则主要是以命名类型为主:
+
+```java
+class Foo {
+  method(input: string): number { ... }
+}
+class Bar {
+  method(input: string): number { ... }
+}
+let foo: Foo = new Bar(); // ERROR!!
+```
+
+比如 ts, Haskell, Elm则主要是以结构类型为主:
+
+```ts
+class Foo {
+  
+method(input: string): number { ... }
+}
+class Bar {
+  
+method(input: string): number { ... }
+}
+let foo: Foo = new Bar(); // Okay.
+```
+
+### 类型推断
+
+一些编程语言要求变量声明的时候必须指定它的类型, 比如C和java, 一些编程语言可以在变量声明的时候自动推断变量的类型, 例如haskell, typescript.
+
+- 定义时推断
+
+```ts
+let foo = 123
+let bar = 'Hello'
+foo = bar // Error: cannot assign `string` to a `number`
+```
+
+- 返回值推断
+
+```ts
+// 返回值推断
+function add(a: number, b: number) {
+    return a + b
+}
+let foo = add(1, 2) // foo: number
+```
+
+- 条件推断
+
+```ts
+function getString(a :string | number) :string {
+  if (typeof a === 'number') {
+    return String(a) // a: number
+  }
+  return a
+}
+```
+
+
+### 协变, 逆变, 双变, 不变
+
+逆变: 
+
+只接受超类和本身, 不接受子类型。
+
+不变: 
+
+只有其本身的类型可用, 父子类型不可用
+
+协变: 
+
+不接受超类，只接受本身和子类型。
+
+双变: 
+
+接受所有的超类子类.
+
+- 可达性(Reachability)和穷尽性(Exhaustiveness)
+
+```ts
+function getString(a :string) :string {
+  // unreachable ERR! 
+  // This condition will always return 'false' since the types 'string' and 'number' have no overlap.
+  if (a === 123) {
+    return String(a)
+  }
+  return a
+}
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## ts + jsdoc
+
+通过/** */形式的注释可以给 TS 类型做标记，编辑器会有更好的提示：
+
+```ts
+/** A cool guy. */
+interface Person {
+  /** A cool name. */
+  name: string,
+}
+
+```
 
 ### 基础类型:
 
@@ -340,6 +469,34 @@ const f = (e: PlotlyHTMLElement) => {
 更多工具类型参考：[utility-types](https://github.com/piotrwitek/utility-types)
 
 ### .d.ts
+
+> 为了描述不是用TypeScript编写的类库的类型，我们需要声明类库导出的API。 由于大部分程序库只提供少数的顶级对象，命名空间是用来表示它们的一个好办法。
+
+> 我们称其为声明是因为它不是外部程序的具体实现。 我们通常在 .d.ts里写这些声明。 如果你熟悉C/C++，你可以把它们当做 .h文件。 让我们看一些例子。
+
+```ts
+// d3.d.ts
+declare namespace D3 {
+    export interface Selectors {
+        select: {
+            (selector: string): Selection;
+            (element: EventTarget): Selection;
+        };
+    }
+
+    export interface Event {
+        x: number;
+        y: number;
+    }
+
+    export interface Base extends Selectors {
+        event: Event;
+    }
+}
+
+declare var d3: D3.Base;
+```
+
 
 ## React + TS
 
