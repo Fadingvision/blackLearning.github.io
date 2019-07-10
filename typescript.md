@@ -203,6 +203,81 @@ square.sideLength = 10;
 square.penWidth = 5.0;
 ```
 
+
+### Namespaces and Modules
+
+namespaces是一种过时的ts模块化方案。
+
+```ts
+namespace foo {
+    export var x = 10;
+    export var y = 20;
+}
+
+// =>
+
+var foo;
+(function (foo) {
+    foo.x = 10;
+    foo.y = 20;
+})(foo || (foo = {}));
+
+```
+
+但namespaces可以用于ts的代码组织，例如一些顶层API比如react, 但是有大量的类型和方法，可以用namespace将其包含在一个顶级的命名空间中，而不是大量的export，常常用于一些顶级变量例如jquery, react, angular等.d.ts声明文件的编写。
+
+相同名字的namespace会互相合并，并且namespace是全局作用域的。
+
+例如： 
+
+```ts
+export = React;
+export as namespace React;
+// 用于声明react 类型的.d.ts，使用namespace来组织代码
+declare namespace React {
+    type ReactText = string | number;
+    type ReactChild = ReactElement | ReactText;
+
+    interface ReactNodeArray extends Array<ReactNode> {}
+    type ReactFragment = {} | ReactNodeArray;
+    type ReactNode = ReactChild | ReactFragment | ReactPortal | boolean | null | undefined;
+
+    //
+    // Top Level API
+    // ----------------------------------------------------------------------
+
+    // DOM Elements
+    function createFactory<T extends HTMLElement>(
+        type: keyof ReactHTML): HTMLFactory<T>;
+}
+
+```
+
+modules 也就是es2015的模块方案，使用export 和 import 来导入导出模块。
+
+declare 用于声明已经实现了的函数或者模块的类型。
+
+```ts
+// 声明一个已经存在的buffer模块的方法类型
+declare module "buffer" {
+    export const INSPECT_MAX_BYTES: number;
+    const BuffType: typeof Buffer;
+
+    export type TranscodeEncoding = "ascii" | "utf8" | "utf16le" | "ucs2" | "latin1" | "binary";
+
+    export function transcode(source: Buffer | Uint8Array, fromEnc: TranscodeEncoding, toEnc: TranscodeEncoding): Buffer;
+
+    export const SlowBuffer: {
+        /** @deprecated since v6.0.0, use Buffer.allocUnsafeSlow() */
+        new(size: number): Buffer;
+        prototype: Buffer;
+    };
+
+    export { BuffType as Buffer };
+}
+
+```
+
 ### Generics
 
 泛型是在定义一个类型或者接口的时候，我们不知道其中某些参数的具体类型，但是又想对其进行某种约束，这时候就可以用泛型(常常是一个大写字母)来代替表示该类型。T 或者任意的大写字母被叫做泛型模板，会在运行时而不是编译时被代替。
