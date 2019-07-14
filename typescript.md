@@ -534,7 +534,8 @@ declare namespace D3 {
 
     export interface Event {
         x: number;
-        y: number;
+        y: num
+        ber;
     }
 
     export interface Base extends Selectors {
@@ -543,6 +544,19 @@ declare namespace D3 {
 }
 
 declare var d3: D3.Base;
+```
+
+扩展第三方的类型声明： 
+
+```ts
+// react.d.ts
+import React from 'react';
+
+declare module "React" {
+  interface HTMLAttributes<T> {
+    hideFocus?: boolean;
+  }
+}
 ```
 
 
