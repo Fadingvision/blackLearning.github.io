@@ -1,17 +1,12 @@
-# TypeScirpt 小记
+# TypeScirpt
 
-## 类型系统比较(type system)
-
-## 枚举类型，泛型，末班类型，抽象类，虚类
-
-## ts的AST和实现
-
-## 类型兼容, 类型推导, 类型演算
+## 类型系统(type system)
 
 - 结构类型(structural typing)
 - 命名类型(nominal typing)
 
-当比较两种数据的时候, 如果比较的是他们的类型结构,则是结构类型, 如果比较的是他们的名字, 则是命名类型.
+当比较两种数据的时候, 如果比较的是他们的类型结构, 则是结构类型, 也就是说即使两个参数的类型不同，但是如果他们的类型结构是一样，我们就认为它们的类型是兼容的
+
 
 比如 Java, C++, Swift则主要是以命名类型为主:
 
@@ -39,129 +34,35 @@ method(input: string): number { ... }
 let foo: Foo = new Bar(); // Okay.
 ```
 
-### 类型推断
-
-一些编程语言要求变量声明的时候必须指定它的类型, 比如C和java, 一些编程语言可以在变量声明的时候自动推断变量的类型, 例如haskell, typescript.
-
-- 定义时推断
-
-```ts
-let foo = 123
-let bar = 'Hello'
-foo = bar // Error: cannot assign `string` to a `number`
-```
-
-- 返回值推断
-
-```ts
-// 返回值推断
-function add(a: number, b: number) {
-    return a + b
-}
-let foo = add(1, 2) // foo: number
-```
-
-- 条件推断
-
-```ts
-function getString(a :string | number) :string {
-  if (typeof a === 'number') {
-    return String(a) // a: number
-  }
-  return a
-}
-```
-
-
-### 协变, 逆变, 双变, 不变
-
-逆变: 
-
-只接受超类和本身, 不接受子类型。
-
-不变: 
-
-只有其本身的类型可用, 父子类型不可用
-
-协变: 
-
-不接受超类，只接受本身和子类型。
-
-双变: 
-
-接受所有的超类子类.
-
-- 可达性(Reachability)和穷尽性(Exhaustiveness)
-
-```ts
-function getString(a :string) :string {
-  // unreachable ERR! 
-  // This condition will always return 'false' since the types 'string' and 'number' have no overlap.
-  if (a === 123) {
-    return String(a)
-  }
-  return a
-}
-
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-## ts + jsdoc
-
-通过/** */形式的注释可以给 TS 类型做标记，编辑器会有更好的提示：
-
-```ts
-/** A cool guy. */
-interface Person {
-  /** A cool name. */
-  name: string,
-}
-
-```
-
-### 基础类型:
+## 基础类型:
 
 -   Boolean
 -   Number
 -   String
 -   symbol
 -   Array
--   Object
+-   Object: 表示所有的非原始类型，也就是引用类型。
 -   Null
 -   Undefined
--   Tuple: 可以知道数组内不同元素的类型的数组.
--   Enum
--   Any
--   Void
--   Never
 
-### Interfaces
+    默认Null和undefined可以复制给任意的其他类型。
+
+    可以通过`strictNullChecks`来限制这种行为，让null和undefined只能复制给他们自身和void类型。
+
+-   Tuple: 可以知道数组内不同元素的类型的数组.
+-   Enum: 定义一组数值
+-   Any: 任意类型，主要用于兼容第三方的代码,
+
+    可以使用`noImplitAny`来限制any类型的使用。
+
+-   Void: 没有任何类型，例如函数没有返回值
+-   Never: 表示永远不存在的类型，是任意类型的子类型，也可以赋值给任意类型。但是其他所有的类型都不能赋值给never类型。
+
+## Interfaces
+
+接口定义了一些类型的成员和对应的类型，它是只在编译阶段存在，不能包含成员的具体实现细节。
 
 所有的相同的 Interface 的声明都会最终合并在一起，因此如果你想在一个已经声明了的 Interface 上继续添加属性的话，可以继续声明该 Interface 即可。
-
-ts的类型是基于结构的类型，也就是说即使两个参数的类型不同，但是如果他们的类型结构是一样，他们也可以互相赋值。
 
 -   optional properties
 
@@ -170,7 +71,9 @@ ts的类型是基于结构的类型，也就是说即使两个参数的类型不
 -   readonly properties: 属性使用 readonly, 变量使用`const`
 
 `readyonly x: Number;`
-`ReadonlyArray<T>`
+
+只读数组，任何调用数组上可变方法(push, pop)等方法都会导致编译错误。
+`let ro: ReadonlyArray<number> = a;`
 
 -   function types
 
@@ -182,7 +85,30 @@ interface SearchFunc {
 }
 ```
 
--   class Types
+-   class Types, implements, extends
+
+
+当声明一个class的同时，也相当于声明了一个拥有类的成员的同名的一个类类型。
+
+与C#或Java里接口的基本作用一样，TypeScript也能够用它来明确的强制一个类去符合某种契约。
+
+```ts
+interface ClockInterface {
+  currentTime: Date;
+  setTime(time :Date) :void;
+}
+
+class Clock implements ClockInterface {
+  private currentTime: Date;
+  readonly time: Date;
+  constructor(h: number, m: number) {
+    this.currentTime = new Date();
+  }
+  public setTime() {}
+}
+```
+
+除了类可以互相继承之外，接口也可以相互继承。 这让我们能够从一个接口里复制成员到另一个接口里，可以更灵活地将接口分割到可重用的模块里。
 
 ```ts
 interface Shape {
@@ -193,18 +119,20 @@ interface PenStroke {
     penWidth: number;
 }
 
-interface Square extends Shape, PenStroke {
+// 多重继承，接口也可以继承类类型
+interface Square extends Shape, PenStroke, Clock {
     sideLength: number;
 }
 
+// 类型断言
 let square = <Square>{};
+let square = {} as Square;
 square.color = 'blue';
 square.sideLength = 10;
 square.penWidth = 5.0;
 ```
 
-
-### Namespaces and Modules
+## Namespaces and Modules
 
 namespaces是一种过时的ts模块化方案。
 
@@ -278,9 +206,39 @@ declare module "buffer" {
 
 ```
 
-### Generics
+### 模块解析
 
-泛型是在定义一个类型或者接口的时候，我们不知道其中某些参数的具体类型，但是又想对其进行某种约束，这时候就可以用泛型(常常是一个大写字母)来代替表示该类型。T 或者任意的大写字母被叫做泛型模板，会在运行时而不是编译时被代替。
+遵循NodeJs的模块解析策略
+
+```ts
+// root/src/moduleA.ts
+import { b } from "./moduleB"
+```
+
+- /root/src/moduleB.ts
+- /root/src/moduleB.tsx
+- /root/src/moduleB.d.ts
+- /root/src/moduleB/package.json (如果指定了"types"属性)
+- /root/src/moduleB/index.ts
+- /root/src/moduleB/index.tsx
+- /root/src/moduleB/index.d.ts
+
+### 三斜线指令
+
+`/// <reference path="..." />`指令是三斜线指令中最常见的一种。 
+它用于声明文件间的依赖。
+告诉编译器在编译过程中要引入的额外的文件。
+
+大多数常用的第三方模块都可以在`DefinitelyTyped`这个库中找到对应的声明文件。
+
+默认在编译时会将所有的node_modules中的@types文件下的声明文件引入进来。
+可以通过`typeRoots`和`types`配置项来改变默认行为。
+
+自动引入只在你使用了全局的声明（相反于模块）时是重要的。 如果你使用 import "foo"语句，TypeScript仍然会查找node_modules和node_modules/@types文件夹来获取foo包。
+
+## Generics
+
+泛型是在定义一个类型或者接口的时候，我们不知道其中某些参数的具体类型，但是又想对其进行某种约束，这时候就可以用泛型(常常是一个大写字母)来代替表示该类型。
 
 当你使用简单的泛型时，泛型常用 T、U、V 表示。如果在你的参数里，不止拥有一个泛型，你应该使用一个更语义化名称，如 TKey 和 TValue （通常情况下，以 T 做为泛型前缀也在如 C++ 的其他语言里做为模版。）
 
@@ -368,45 +326,42 @@ function loggingIdentity<T extends Lengthwise>(arg: T): T {
 }
 ```
 
-### 枚举
+## 类型进阶
 
-枚举用来定义一种常量类型，帮助使用这个枚举中的值，可以有效的避免硬编码，
-并且当使用了超出枚举范围内的值时，方便的提示错误。
+### 类型推断
+
+一些编程语言要求变量声明的时候必须指定它的类型, 比如C和java, 一些编程语言可以在变量声明的时候自动推断变量的类型, 例如haskell, typescript.
+
+- 定义时推断
 
 ```ts
-enum Response {
-    No = 0,
-    Yes = 1
+let foo = 123
+let bar = 'Hello'
+foo = bar // Error: cannot assign `string` to a `number`
+```
+
+- 返回值推断
+
+```ts
+// 返回值推断
+function add(a: number, b: number) {
+    return a + b
+}
+let foo = add(1, 2) // foo: number
+```
+
+- 条件推断
+
+```ts
+function getString(a :string | number) :string {
+  if (typeof a === 'number') {
+    return String(a) // a: number
+  }
+  return a
 }
 ```
 
-反向隐射：
-
-```ts
-enum isSuccess {
-    0 = 'no',
-    1 = 'yes'
-}
-
-isSucess[0]; // no
-isSucess[no]; // 0
-```
-
-常量枚举：
-
-```ts
-const enum Tristate {
-    False,
-    True,
-    Unknown
-}
-
-const lie = Tristate.False; // goes => const lie = 0;
-```
-
-### 类型进阶
-
--   类型断言：
+### 类型断言：
 
 ```ts
 let pet = getSmallPet();
@@ -422,7 +377,7 @@ if ((<Fish>pet).swim) {
 
 因此可以使用`(pet as Fly).fly()`的 as 语法来断言。
 
--   类型守护：
+###  类型守护：
 
 ```ts
 function isFish(pet: Fish | Bird): pet is Fish {
@@ -440,7 +395,7 @@ function padLeft(value: string, padding: string | number) {
 }
 ```
 
--   类型别名
+### 类型别名
 
 ```ts
 type Name = string;
@@ -455,9 +410,9 @@ function getName(n: NameOrResolver): Name {
 }
 ```
 
-### 类型工具：
+## 类型关键字和类型工具：
 
--   extends
+- extends
 
 ```ts
 T extends U ? X : Y
@@ -465,7 +420,7 @@ T extends U ? X : Y
 
 如果 T 类型可以认为是继承于U类型（要么 T 和 U 是同一种基础类型，要么 T 类型的代表范围 小于 U类型，也就是 T 是 U 的子集，U 是 T 的超集），则取 X, 否则取 Y;
 
--   typeof: 从变量中读出其类型(通常由 ts 推断得出)
+- typeof: 从变量中读出其类型(通常由 ts 推断得出)
 
 这允许你告诉编译器，一个变量的类型与其他类型相同
 
@@ -477,7 +432,7 @@ bar = 456; // ok
 bar = '789'; // Error: 'string' 不能分配给 'number' 类型
 ```
 
--   keyof: 捕获键的名称
+- keyof: 索引类型查询操作符，对于任何类型 T， keyof T的结果为 T上已知的公共属性名的联合类型
 
 keyof 操作符能让你捕获一个类型的键。例如，你可以使用它来捕获变量的键名称，在通过使用 typeof 来获取类型之后：
 
@@ -490,6 +445,23 @@ const colors = {
 type Colors = keyof typeof colors;
 
 let color: Colors; // color 的类型是 'red' | 'blue'
+```
+
+- T[K]: 索引访问操作符 & in: 映射类型
+
+```ts
+interface colors {
+  red: string,
+  blue: number
+};
+
+// in可以将T中所有的属性转为新的类型中的属性
+// T[k] 则可以取到原类型中的某个属性的类型
+type Readonly<T> = {
+    readonly [P in keyof T]: T[P];
+}
+
+type A = Map<colors>
 ```
 
 -   Omit: 从类型中移除某个属性
@@ -523,10 +495,11 @@ sample = 'AnythingElse'; // ERROR!
 ```
 
 -   as: 类型推断(当你比 ts 编译器更懂该变量的类型时，可以强制指定该变量的类型，防止编译报错)
+
 -   declare module: 可以用于为第三方模块添加类型, 或者覆盖第三方的类型
 
 ```ts
-// my-typings.ts
+// my-typings.d.ts
 declare module 'plotly.js' {
     interface PlotlyHTMLElement {
         removeAllListeners(): void;
@@ -543,11 +516,11 @@ const f = (e: PlotlyHTMLElement) => {
 
 更多工具类型参考：[utility-types](https://github.com/piotrwitek/utility-types)
 
-### .d.ts
+## .d.ts
 
 > 为了描述不是用TypeScript编写的类库的类型，我们需要声明类库导出的API。 由于大部分程序库只提供少数的顶级对象，命名空间是用来表示它们的一个好办法。
 
-> 我们称其为声明是因为它不是外部程序的具体实现。 我们通常在 .d.ts里写这些声明。 如果你熟悉C/C++，你可以把它们当做 .h文件。 让我们看一些例子。
+> 我们称其为声明是因为它不是外部程序的具体实现。 我们通常在 .d.ts里写这些声明。 如果你熟悉C/C++，你可以把它们当做 .h文件。
 
 ```ts
 // d3.d.ts
@@ -672,6 +645,6 @@ class App extends Component<AppProps> {
 export default App;
 ```
 
-### Refrence
+## Refrence
 
 [React & Redux in TypeScript - Static Typing Guide](https://github.com/piotrwitek/react-redux-typescript-guide)
