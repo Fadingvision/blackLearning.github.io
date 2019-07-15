@@ -410,9 +410,11 @@ function getName(n: NameOrResolver): Name {
 }
 ```
 
-## 类型关键字和类型工具：
+## 类型操作符和类型工具：
 
-- extends
+- readonly, ?
+
+- extends 和条件类型
 
 ```ts
 T extends U ? X : Y
@@ -463,56 +465,24 @@ type Readonly<T> = {
 
 type A = Map<colors>
 ```
-
--   Omit: 从类型中移除某个属性
--   Partial: 允许使用类型中的部分类型
--   &: 交叉类型
--   |: 联合类型
-
-从数组中自动生成联合类型：
-
-```ts
-// 用于创建字符串列表映射至 `K: V` 的函数
-function strEnum<T extends string>(o: Array<T>): { [K in T]: K } {
-    return o.reduce((res, key) => {
-        res[key] = key;
-        return res;
-    }, Object.create(null));
-}
-
-// 创建 K: V
-const Direction = strEnum(['North', 'South', 'East', 'West']);
-
-// 创建一个类型
-type Direction = keyof typeof Direction;
-
-// 简单的使用
-let sample: Direction;
-
-sample = Direction.North; // Okay
-sample = 'North'; // Okay
-sample = 'AnythingElse'; // ERROR!
-```
-
 -   as: 类型推断(当你比 ts 编译器更懂该变量的类型时，可以强制指定该变量的类型，防止编译报错)
 
--   declare module: 可以用于为第三方模块添加类型, 或者覆盖第三方的类型
 
-```ts
-// my-typings.d.ts
-declare module 'plotly.js' {
-    interface PlotlyHTMLElement {
-        removeAllListeners(): void;
-    }
-}
+--- 
+- ConstructorParameters: a tuple of class constructor's parameter types
+- Exclude: exclude a type from another type
+- Extract: select a subtype that is assignable to another type
+- InstanceType: the instance type you get from a newing a class constructor
+- NonNullable: exclude null and undefined from a type
+- Parameters: a tuple of a function's parameter types
+- Partial: Make all properties in an object optional
+- Readonly: Make all properties in an object readonly
+- ReadonlyArray: Make an immutable array of the given type
+- Pick: A subtype of an object type with a subset of its keys
+- Record: A map from a key type to a value type
+- Required: Make all properties in an object required
+- ReturnType A function's return type
 
-// MyComponent.tsx
-import { PlotlyHTMLElement } from 'plotly.js';
-import './my-typings';
-const f = (e: PlotlyHTMLElement) => {
-    e.removeAllListeners();
-};
-```
 
 更多工具类型参考：[utility-types](https://github.com/piotrwitek/utility-types)
 
@@ -522,28 +492,47 @@ const f = (e: PlotlyHTMLElement) => {
 
 > 我们称其为声明是因为它不是外部程序的具体实现。 我们通常在 .d.ts里写这些声明。 如果你熟悉C/C++，你可以把它们当做 .h文件。
 
+一个典型的module类型库的声明文件模板
+
 ```ts
+
+export as namespace myLib;
 // d3.d.ts
-declare namespace D3 {
-    export interface Selectors {
-        select: {
-            (selector: string): Selection;
-            (element: EventTarget): Selection;
-        };
-    }
+/*~ If this module has methods, declare them as functions like so.
+ */
+export function myMethod(a: string): string;
+export function myOtherMethod(a: number): number;
 
-    export interface Event {
-        x: number;
-        y: num
-        ber;
-    }
-
-    export interface Base extends Selectors {
-        event: Event;
-    }
+/*~ You can declare types that are available via importing the module */
+export interface someType {
+    name: string;
+    length: number;
+    extras?: string[];
 }
 
-declare var d3: D3.Base;
+/*~ You can declare properties of the module using const, let, or var */
+export const myField: number;
+
+/*~ If there are types, properties, or methods inside dotted names
+ *~ of the module, declare them inside a 'namespace'.
+ */
+export namespace subProp {
+    /*~ For example, given this definition, someone could write:
+     *~   import { subProp } from 'yourModule';
+     *~   subProp.foo();
+     *~ or
+     *~   import * as yourMod from 'yourModule';
+     *~   yourMod.subProp.foo();
+     */
+    export function foo(): void;
+}
+```
+
+快速忽略第三方库的类型声明:
+
+```ts
+// my-typings.ts
+declare module "react"; // each of its imports are `any`
 ```
 
 扩展第三方的类型声明： 
@@ -562,101 +551,123 @@ declare module "React" {
 
 ## React + TS
 
-常用的 React+ts 应用:
+@types/react, @types/react-dom
+
+
+基本的Props类型模板:
+
+使用标准的Ts注释方式: `/** comment */`, 方便使用者清楚的知道组件的属性含义.
+
+```ts
+type AppProps = {
+  message: string;
+  count: number;
+  disabled: boolean;
+  /** array of a type! */
+  names: string[];
+  /** string literals to specify exact string values, with a union type to join them together */
+  status: "waiting" | "success";
+  /** any object as long as you dont use its properties (not common) */
+  obj: object;
+  obj2: {}; // almost the same as `object`, exactly the same as `Object`
+  /** an object with defined properties (preferred) */
+  obj3: {
+    id: string;
+    title: string;
+  };
+  /** array of objects! (common) */
+  objArr: {
+    id: string;
+    title: string;
+  }[];
+  /** any function as long as you don't invoke it (not recommended) */
+  onSomething: Function;
+  /** function that doesn't take or return anything (VERY COMMON) */
+  onClick: () => void;
+  /** function with named prop (VERY COMMON) */
+  onChange: (id: number) => void;
+  /** alternative function type syntax that takes an event (VERY COMMON) */
+  onClick(event: React.MouseEvent<HTMLButtonElement>): void;
+  /** an optional prop (VERY COMMON!) */
+  optional?: OptionalType;
+};
+```
+
+---
+
+#### `React.FC<Props>` | `React.FunctionComponent<Props>`
 
 ```tsx
-import React, { Component, useState, useRef } from 'react';
-import logo from './logo.svg';
-import './App.css';
+const MyComponent: React.FC<Props> = ...
+```
 
-interface HelloProps {
-    message: string;
-}
+#### `React.Component<Props, State>`
 
-interface AsyncTask {
-    (aPromise: Promise<any>): Promise<any>;
-}
+```tsx
+class MyComponent extends React.Component<Props, State> { ...
+```
 
-// custom hook
-export function useLoading() {
-    const [isLoading, setState] = useState(false);
-    const load: AsyncTask = asyncTask => {
-        setState(true);
-        return asyncTask.finally(() => setState(false));
-    };
-    // 当一个数组有两种类型的时候，为了避免类型推断，这里显式定义类型。
-    return [isLoading, load] as [boolean, AsyncTask];
-}
+1. 将props, state设为read-only
+2. 为组件的props做注解, 对使用者友好, 因此可以代替prop-types
 
-// 语法更冗长，但是没有突出的优点，优先使用普通函数语法。
-const HelloWorld: React.FunctionComponent<HelloProps> = props => {
-    const [val, toggle] = useState(false);
-    const inputRef = useRef<HTMLInputElement | null>(null);
+#### `React.ComponentType<Props>`
 
-    return (
-        <div>
-            <input type="text" ref={inputRef} />
-            <span onClick={() => inputRef.current && inputRef.current.focus()}>
-                {props.message}
-            </span>
-        </div>
-    );
-};
+```tsx
+const withState = <P extends WrappedComponentProps>(
+  WrappedComponent: React.ComponentType<P>,
+) => { ...
+```
 
-// 为app.props声明defaultProps和其他props的联合类型
-type AppProps = typeof App.defaultProps & {
-    prefix?: string;
-};
+#### `React.ComponentProps<typeof XXX>` | `React.ComponentProps<htmlComponent>`
 
-// 这里forwardRef是一个泛型函数，
-// 第一个泛型参数标识接收的组件类型是一个函数式组件，并且它的类型必须是HTMLButtonElement
-// 第二个泛型参数限制了该组件的props, propTypes, defaultProps必须是ButtonProps类型
-// 两个参数同时限制了返回的组件的props(如果不为空)必须是HTMLButtonElement类型的ref属性和ButtonProps的属性
-type ButtonProps = React.PropsWithChildren<{ type: 'submit' | 'button' }>;
-const FancyButton = React.forwardRef<HTMLButtonElement, ButtonProps>(
-    (props, ref) => (
-        <button ref={ref} type={props.type}>
-            {props.children}
-        </button>
-    )
-);
+```tsx
+type MyComponentProps = React.ComponentProps<typeof MyComponent>;
+```
 
-class App extends Component<AppProps> {
-    private buttonRef = React.createRef<HTMLButtonElement>();
+#### `React.ReactElement` | `JSX.Element`
 
-    static defaultProps = {
-        name: 'world'
-    };
+```tsx
+const elementOnly: React.ReactElement = <div /> || <MyComponent />;
+```
 
-    // 自动bind this, 声明该函数是一个MouseEventHandler, 并且e.target是HTMLAnchorElement
-    onClick: React.MouseEventHandler<HTMLAnchorElement> = e => {
-        this.setState({});
-    };
+#### `React.ReactNode`
 
-    render() {
-        return (
-            <div className="App">
-                <header className="App-header">
-                    <img src={logo} className="App-logo" alt="logo" />
-                    <HelloWorld message="123" />
-                    <a
-                        className="App-link"
-                        onClick={this.onClick}
-                        href="https://reactjs.org"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                    >
-                        <FancyButton type="button" ref={this.buttonRef}>
-                            Learn React
-                        </FancyButton>
-                    </a>
-                </header>
-            </div>
-        );
-    }
-}
+```tsx
+const elementOrPrimitive: React.ReactNode = 'string' || 0 || false || null || undefined || <div /> || <MyComponent />;
+const Component = ({ children: React.ReactNode }) => ...
+```
 
-export default App;
+#### `React.CSSProperties`
+
+```tsx
+const styles: React.CSSProperties = { flexDirection: 'row', ...
+const element = <div style={styles} ...
+```
+
+#### `React.HTMLProps<HTMLXXXElement>`
+
+```tsx
+const Input: React.FC<Props & React.HTMLProps<HTMLInputElement>> = props => { ... }
+
+<Input about={...} accept={...} alt={...} ... />
+```
+
+#### `React.ReactEventHandler<HTMLXXXElement>`
+
+```tsx
+const handleChange: React.ReactEventHandler<HTMLInputElement> = (ev) => { ... } 
+
+<input onChange={handleChange} ... />
+```
+
+#### `React.XXXEvent<HTMLXXXElement>`
+
+更加细粒度的事件类型, 比如 `ChangeEvent, FormEvent, FocusEvent, KeyboardEvent, MouseEvent, DragEvent, PointerEvent, WheelEvent, TouchEvent`.
+
+```tsx
+const handleChange = (ev: React.MouseEvent<HTMLDivElement>) => { ... }
+
+<div onMouseMove={handleChange} ... />
 ```
 
 ## Refrence
