@@ -1,27 +1,215 @@
-## Part I -- React Mount
+## VDom
+## Diff
+## hooks
+
+## Fiber
 
 
-### JSX => HMTL
+#### fiberNode: 
 
-1. 监视滚动条。
-2. 实例化组件。
+```js
+// Instance
+this.tag = tag;
+this.key = key;
+this.elementType = null;
+this.type = null;
+this.stateNode = null;
 
-组件被分成三类：混合式组件（自定义的），dom组件（div之类）,字符串组件（无标签的纯字符串）
+// Fiber
+this.return = null;
+this.child = null;
+this.sibling = null;
+this.index = 0;
 
-3. validate the nesting of component
+this.ref = null;
 
-For example, if parent tag is <select>, child tag should be only one of the following: option, optgroup, or #text. These rules actually are defined in https://html.spec.whatwg.org/multipage/syntax.html#parsing-main-inselect.
+this.pendingProps = pendingProps;
+this.memoizedProps = null;
+this.updateQueue = null;
+this.memoizedState = null;
+this.dependencies = null;
 
-### transaction (事务)
+this.mode = mode;
 
-想象有一个通信渠道，你需要打开链接，发送信息，关闭链接，如果你一条接一条的发送一些信息，因此，仅需要打开链接一次，发送所有待发送的消息，然后关闭连接。
+// Effects
+this.effectTag = NoEffect;
+this.nextEffect = null;
 
-好的，然后让我们思考一些更抽象的东西，如果发送消息是你想要执行的操作，打开/关闭链接是在执行操作期间的预/后处理。
+this.firstEffect = null;
+this.lastEffect = null;
+
+this.expirationTime = NoWork;
+this.childExpirationTime = NoWork;
+
+this.alternate = null;
+```
+
+### fiberTree: 
+
+```js
+class ClickCounter extends React.Component {
+    constructor(props) {
+        super(props);
+        this.state = {count: 0};
+        this.handleClick = this.handleClick.bind(this);
+    }
+
+    handleClick() {
+        this.setState((state) => {
+            return {count: state.count + 1};
+        });
+    }
 
 
-事务是react中被广泛使用的模式，除了用来包装action,事务允许你重置事务流，允许你在一个事务已经在进程中的时候阻塞其他的同时发生的事务流。
+    render() {
+        return [
+            <button key="1" onClick={this.handleClick}>Update counter</button>,
+            <span key="2">{this.state.count}</span>
+        ]
+    }
+}
+```
+
+=>
+
+![](https://miro.medium.com/max/694/1*cLqBZRht7RgR9enHet_0fQ.png)
 
 
-不同的事务负责了不同的行为，但所有的事务都是从Transaction模块中扩张出来的，最主要的不同是具体的事务容器列表，容器是一个包含初始化和关闭事务方法的对象。
+#### Current => WorkInProgress
 
-<img src="https://rawgit.com/Bogdan-Lyashenko/Under-the-hood-ReactJS/master/stack/images/1/transaction.svg" alt="">
+
+#### Effects: 
+
+每次dom操作，或者调用生命周期方法都被视为副作用。它们代表了一些需要在update之后被完成的工作，
+
+每个filer节点都有相对应的副作用与其关联，副作用类型被用数字类型保存在`effectTag`中。
+
+#### Effects list
+
+
+### Render and Commit phase
+
+### Fiber Tree traversal
+
+```js
+// Import stylesheets
+import './style.css';
+
+// Write Javascript code!
+const appDiv = document.getElementById('app');
+appDiv.innerHTML = `<h1>Linked list traversal</h1>`;
+
+function log(value) {
+  const span = document.createElement('span');
+  span.textContent = value + ', ';
+  appDiv.appendChild(span);
+}
+
+const a1 = {name: 'a1'};
+const b1 = {name: 'b1'};
+const b2 = {name: 'b2'};
+const b3 = {name: 'b3'};
+const c1 = {name: 'c1'};
+const c2 = {name: 'c2'};
+const d1 = {name: 'd1'};
+const d2 = {name: 'd2'};
+
+a1.render = () => [b1, b2, b3];
+b1.render = () => null;
+b2.render = () => [c1];
+b3.render = () => [c2];
+c1.render = () => [d1, d2];
+c2.render = () => null;
+d1.render = () => null;
+d2.render = () => null;
+
+class Node {
+    constructor(instance) {
+        this.instance = instance;
+        this.child = null;
+        this.sibling = null;
+        this.return = null;
+    }
+}
+
+function link(parent, elements) {
+    if (elements === null) elements = [];
+
+    parent.child = elements.reduceRight((previous, current) => {
+        const node = new Node(current);
+        node.return = parent;
+        node.sibling = previous;
+        return node;
+    }, null);
+
+    return parent.child;
+}
+
+function doWork(node) {
+    log(node.instance.name);
+    const children = node.instance.render();
+    return link(node, children);
+}
+
+const hostNode = new Node(a1);
+walk(hostNode);
+
+function walk(o) {
+    let root = o;
+    let node = o;
+
+    while (true) {
+        let child = doWork(node);
+
+        if (child) {
+            node = child;
+            continue;
+        }
+
+        if (node === root) {
+            return;
+        }
+
+        while (!node.sibling) {
+            if (!node.return || node.return === root) {
+                return;
+            }
+
+            node = node.return;
+        }
+
+        node = node.sibling;
+    }
+}
+```
+
+[](https://medium.com/react-in-depth/in-depth-explanation-of-state-and-props-update-in-react-51ab94563311)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
