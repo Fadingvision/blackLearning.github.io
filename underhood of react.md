@@ -50,11 +50,15 @@ this.alternate = null;
 - siblings 表示兄弟节点的引用
 - child 表示子节点的引用
 
+这些属性用于构建fiberTree
+
 ### fiberTree: 
 
 你可以把fiber看做代表某些待完成的任务的一种数据结构，或者说，一批量的任务。Fiber的架构提供了一种更便捷的方式用于跟踪、调度、暂停或者废弃任务。
 
 每个对应的组件或者说React Element都会生成对应的一个fiberNode, 在更新流程中，react会使用react Element中的数据来更新fiberNode节点的对应属性，当然如果react Element在render返回中被删除或者修改了，fiberNode也会做出对应的更新。
+
+也就是说一个fiber节点对应了一个待完成的任务，也对应了一个react组件的实例。
 
 ```js
 class ClickCounter extends React.Component {
@@ -217,6 +221,13 @@ function walk(o) {
     }
 }
 ```
+
+- how the scheduler finds the next unit of work to perform.
+- how priority is tracked and propagated through the fiber tree.
+- how the scheduler knows when to pause and resume work.
+- how work is flushed and marked as complete.
+- how side-effects (such as lifecycle methods) work.
+- what a coroutine is and how it can be used to implement features like context and layout.
 
 [](https://medium.com/react-in-depth/in-depth-explanation-of-state-and-props-update-in-react-51ab94563311)
 
