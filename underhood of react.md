@@ -1,9 +1,4 @@
-## VDom
-## Diff
-## hooks
-
 ## Fiber
-
 
 #### fiberNode: 
 
@@ -88,45 +83,6 @@ class ClickCounter extends React.Component {
 
 ![](https://miro.medium.com/max/694/1*cLqBZRht7RgR9enHet_0fQ.png)
 
-
-#### Current => WorkInProgress
-
-在第一次渲染完成后，react生成了一个fiber tree，其反映了整个应用的当前状态，这个状态用来渲染UI界面，我们将这个fiber tree叫做current。当react开始更新时，它会生成一个`workInProgess`的新的fiberTree用于反映即将被更新到界面上的状态。
-
-所有更新的批任务都来自于这个workInProgress树，随着react遍历current树的同时，对每个存在的fiberNode都会创建一个对应的fiberNode来组成workInProgess树，一旦所有的工作完成，那么就会使用当前的workInProgess树来替换掉对应的树。
-
-fiberNode中的`alternate`属性就是用来保存一个对应的树的对应节点的引用。
-
-#### Effects: 
-
-每次dom操作，或者调用生命周期方法都被视为副作用。它们代表了一些需要在update之后被完成的工作，
-
-每个filer节点都有相对应的副作用与其关联，副作用类型被用数字类型保存在`effectTag`中。
-
-因此effects在fiber节点中的作用就是定义了在更新操作执行后需要被完成的任务，例如需要去更新dom节点，需要调用对用的方法`componentDidMount`或者`componentDidUpdate`，或者需要更新`refs`引用之类的任务。不同的fiber节点会用不同的任务类型。
-
-#### Effects list
-
-为了在每次更新时尽快的执行任务，react会用nextEffect来维护一个线性的effect列表，用于快速的迭代effects和过滤掉一些不需要更新也就是没有effects的节点。
-
-
-### Render and Commit phase
-
-
-render 阶段用于为每个fiberNode标记effects, 这些effects描述了需要在commit阶段被完成的任务。
-
-需要注意的是，在这个阶段的工作，都是异步的，也就是react可能会执行一个或多个fiberNode的标记工作，这取决于浏览器是否有空闲的时间。
-
-四个主要的函数被用来遍历workInProgress树和执行任务：
-
-performUnitOfWork
-beginWork
-completeUnitOfWork
-completeWork
-
-commit阶段就会遍历effectList从而执行对应的DOM更新或者其他的操作。
-
-而commit阶段始终是同步的。
 
 ### Fiber Tree traversal
 
@@ -222,6 +178,132 @@ function walk(o) {
 }
 ```
 
+#### Current => WorkInProgress
+
+在第一次渲染完成后，react生成了一个fiber tree，其反映了整个应用的当前状态，这个状态用来渲染UI界面，我们将这个fiber tree叫做current。当react开始更新时，它会生成一个`workInProgess`的新的fiberTree用于反映即将被更新到界面上的状态。
+
+所有更新的批任务都来自于这个workInProgress树，随着react遍历current树的同时，对每个存在的fiberNode都会创建一个对应的fiberNode来组成workInProgess树，一旦所有的工作完成，那么就会使用当前的workInProgess树来替换掉对应的树。
+
+fiberNode中的`alternate`属性就是用来保存一个对应的树的对应节点的引用。
+
+#### Effects: 
+
+每次dom操作，或者调用生命周期方法都被视为副作用。它们代表了一些需要在update之后被完成的工作，
+
+每个filer节点都有相对应的副作用与其关联，副作用类型被用数字类型保存在`effectTag`中。
+
+因此effects在fiber节点中的作用就是定义了在更新操作执行后需要被完成的任务，例如需要去更新dom节点，需要调用对用的方法`componentDidMount`或者`componentDidUpdate`，或者需要更新`refs`引用之类的任务。不同的fiber节点会用不同的任务类型。
+
+#### Effects list
+
+为了在每次更新时尽快的执行任务，react会用nextEffect来维护一个线性的effect列表，用于快速的迭代effects和过滤掉一些不需要更新也就是没有effects的节点。
+
+
+### Render and Commit phase
+
+### Render phase
+
+render 阶段用于为每个fiberNode标记effects, 这些effects描述了需要在commit阶段被完成的任务(例如更新，删除，插入dom节点(这会通过diff算法(fiberNode与新render出来的reactElement比较)来得出)，执行生命周期方法等等)
+
+需要注意的是，在这个阶段的工作，都是异步的，也就是react可能会执行一个或多个fiberNode的标记工作，这取决于浏览器是否有空闲的时间。
+
+四个主要的函数被用来遍历workInProgress树和执行任务：
+
+performUnitOfWork
+beginWork
+completeUnitOfWork
+completeWork
+
+Example Code explain how fiberNodes with unit of works are processed:
+
+```js
+const a1 = {name: 'a1', child: null, sibling: null, return: null};
+const b1 = {name: 'b1', child: null, sibling: null, return: null};
+const b2 = {name: 'b2', child: null, sibling: null, return: null};
+const b3 = {name: 'b3', child: null, sibling: null, return: null};
+const c1 = {name: 'c1', child: null, sibling: null, return: null};
+const c2 = {name: 'c2', child: null, sibling: null, return: null};
+const d1 = {name: 'd1', child: null, sibling: null, return: null};
+const d2 = {name: 'd2', child: null, sibling: null, return: null};
+
+a1.child = b1;
+b1.sibling = b2;
+b2.sibling = b3;
+b2.child = c1;
+b3.child = c2;
+c1.child = d1;
+d1.sibling = d2;
+
+b1.return = b2.return = b3.return = a1;
+c1.return = b2;
+d1.return = d2.return = c1;
+c2.return = b3;
+
+let nextUnitOfWork = a1;
+workLoop();
+
+function workLoop() {
+    while (nextUnitOfWork !== null) {
+        nextUnitOfWork = performUnitOfWork(nextUnitOfWork);
+    }
+}
+
+function performUnitOfWork(workInProgress) {
+    let next = beginWork(workInProgress);
+    if (next === null) {
+        next = completeUnitOfWork(workInProgress);
+    }
+    return next;
+}
+
+function beginWork(workInProgress) {
+    log('work performed for ' + workInProgress.name);
+    return workInProgress.child;
+}
+
+function completeUnitOfWork(workInProgress) {
+    while (true) {
+        let returnFiber = workInProgress.return;
+        let siblingFiber = workInProgress.sibling;
+
+        nextUnitOfWork = completeWork(workInProgress);
+
+        if (siblingFiber !== null) {
+            // If there is a sibling, return it 
+            // to perform work for this sibling
+            return siblingFiber;
+        } else if (returnFiber !== null) {
+            // If there's no more work in this returnFiber, 
+            // continue the loop to complete the returnFiber.
+            workInProgress = returnFiber;
+            continue;
+        } else {
+            // We've reached the root.
+            return null;
+        }
+    }
+}
+
+function completeWork(workInProgress) {
+    log('work completed for ' + workInProgress.name);
+    return null;
+}
+
+function log(message) {
+  let node = document.createElement('div');
+  node.textContent = message;
+  document.body.appendChild(node);
+}
+```
+
+### commit Phase
+
+commit阶段就会遍历effectList从而执行对应的DOM更新或者其他的操作。而commit阶段始终是同步的。
+
+commitBeforeMutationEffects
+commitMutationEffects
+commitLayoutEffects
+
 - how the scheduler finds the next unit of work to perform.
 - how priority is tracked and propagated through the fiber tree.
 - how the scheduler knows when to pause and resume work.
@@ -230,6 +312,11 @@ function walk(o) {
 - what a coroutine is and how it can be used to implement features like context and layout.
 
 [](https://medium.com/react-in-depth/in-depth-explanation-of-state-and-props-update-in-react-51ab94563311)
+
+## Diff
+
+
+## Hooks
 
 
 
