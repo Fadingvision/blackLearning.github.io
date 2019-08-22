@@ -304,16 +304,145 @@ commitBeforeMutationEffects
 commitMutationEffects
 commitLayoutEffects
 
+
+### Q&A:
+
+
 - how the scheduler finds the next unit of work to perform.
 - how priority is tracked and propagated through the fiber tree.
 - how the scheduler knows when to pause and resume work.
 - how work is flushed and marked as complete.
 - how side-effects (such as lifecycle methods) work.
 - what a coroutine is and how it can be used to implement features like context and layout.
+- childExpirationTime, renderExpirationTime
+- what is key used for?
 
 [](https://medium.com/react-in-depth/in-depth-explanation-of-state-and-props-update-in-react-51ab94563311)
 
 ## Diff
+
+1. 如果新节点是一个字符串
+
+```js
+  function reconcileSingleTextNode(
+    returnFiber: Fiber,
+    currentFirstChild: Fiber | null,
+    textContent: string,
+    expirationTime: ExpirationTime,
+  ): Fiber {
+    // There's no need to check for keys on text nodes since we don't have a
+    // way to define them.
+    if (currentFirstChild !== null && currentFirstChild.tag === HostText) {
+      // We already have an existing node so let's just update it and delete
+      // the rest.
+      deleteRemainingChildren(returnFiber, currentFirstChild.sibling);
+      const existing = useFiber(currentFirstChild, textContent, expirationTime);
+      existing.return = returnFiber;
+      return existing;
+    }
+    // The existing first child is not a text node so we need to create one
+    // and delete the existing ones.
+    deleteRemainingChildren(returnFiber, currentFirstChild);
+    const created = createFiberFromText(
+      textContent,
+      returnFiber.mode,
+      expirationTime,
+    );
+    created.return = returnFiber;
+    return created;
+  }
+```
+
+首先如果原位置的节点也是一个文本节点，将其所有的其他子节点删除，然后复用其fiberNode然后更新其文本。
+
+如果源节点不是一个文本节点，则直接删除源节点，然后新建一个文本类型的fiber节点，将其链接到父节点上。
+
+```js
+function deleteChild(returnFiber: Fiber, childToDelete: Fiber): void {
+    if (!shouldTrackSideEffects) {
+      // Noop.
+      return;
+    }
+    // Deletions are added in reversed order so we add it to the front.
+    // At this point, the return fiber's effect list is empty except for
+    // deletions, so we can just append the deletion to the list. The remaining
+    // effects aren't added until the complete phase. Once we implement
+    // resuming, this may not be true.
+    const last = returnFiber.lastEffect;
+    if (last !== null) {
+      last.nextEffect = childToDelete;
+      returnFiber.lastEffect = childToDelete;
+    } else {
+      returnFiber.firstEffect = returnFiber.lastEffect = childToDelete;
+    }
+    childToDelete.nextEffect = null;
+    childToDelete.effectTag = Deletion;
+  }
+  function placeSingleChild(newFiber: Fiber): Fiber {
+    // This is simpler for the single child case. We only need to do a
+    // placement for inserting new children.
+    if (shouldTrackSideEffects && newFiber.alternate === null) {
+      newFiber.effectTag = Placement;
+    }
+    return newFiber;
+  }
+```
+
+在删除子节点时，将其待删除的子节点加入到父节点的effectList中，并为待删除的子节点标记`effectTag`为`Deletion`类型。
+
+同时，将待插入的新节点标记为`PlaceMent`类型。
+
+2. 如果新节点是一个对象，也就是可能为`function`, `class`, `host`组件。
+
+`reactChildFiber -> reconcileSingleElement`
+
+首先如果源节点是一个数组，则找到与新节点key一致的节点(都为null也视为一致)，否则删除全部节点。
+
+如果找到key一致的源节点，首先检查源节点的类型是否与新节点的类型一致，如果一致，则直接删除所有的源节点的兄弟节点，然后复用源节点。
+
+如果类型不一致，则直接删除所有的源节点及其兄弟节点。
+
+然后创建新的fiber节点，并标记其effectTag为`PlaceMent`。
+
+3. 如果新节点是一个数组。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 ## Hooks
