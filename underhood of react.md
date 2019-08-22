@@ -390,7 +390,7 @@ function deleteChild(returnFiber: Fiber, childToDelete: Fiber): void {
 
 在删除子节点时，将其待删除的子节点加入到父节点的effectList中，并为待删除的子节点标记`effectTag`为`Deletion`类型。
 
-同时，将待插入的新节点标记为`PlaceMent`类型。
+同时，将待插入的新节点标记为`PlaceMent`类型。而这些新节点的effect会在`completeUnitOfWork`时统一归并到父节点的effectList中。
 
 2. 如果新节点是一个对象，也就是可能为`function`, `class`, `host`组件。
 
@@ -406,44 +406,19 @@ function deleteChild(returnFiber: Fiber, childToDelete: Fiber): void {
 
 3. 如果新节点是一个数组。
 
+在第一次循环中，依次对比新节点和老节点，直到有一个不匹配或者两个列表其中一个被遍历完成；
 
+如果他们之间的key相同，则重用之前的FiberNode, 否则直接跳出循环。
 
+第一次遍历完成后，如果新节点已经全部遍历完成了(newIdx === newChildren.length)，说明老节点多于新节点，此时所有的oldFiber之后的节点都应该被删除。
 
+如果老节点都已经遍历完成(oldFiber === null), 这说明新节点多余老节点，此时遍历剩下的新节点，为其依次创建新的fiberNode，将其插入到新的节点列表。
 
+如果老的节点和新的节点都有剩余，说明第一次循环中出现了不匹配的情况，说明新的节点中相比老的节点来说从中间新增或者删除了节点，
 
+这时候我们剩余的老节点创建一个Map, 将其key或者index作为唯一标识。然后依次遍历剩余的新节点，用新节点的key去查找对应的老节点，如果找到了直接重用老节点(重用了老节点将其从Map中删除)，否则直接创建一个新的节点插入列表。
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+由于剩下的老节点都是已经被废弃了或者说不能重用的，最后删除Map中所有的老节点。然后返回新列表中的第一个fiberNode作为下一个工作单元。
 
 ## Hooks
 
