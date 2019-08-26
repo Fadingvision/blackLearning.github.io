@@ -305,18 +305,6 @@ commitMutationEffects
 commitLayoutEffects
 
 
-### Q&A:
-
-
-- how the scheduler finds the next unit of work to perform.
-- how priority is tracked and propagated through the fiber tree.
-- how the scheduler knows when to pause and resume work.
-- how work is flushed and marked as complete.
-- how side-effects (such as lifecycle methods) work.
-- what a coroutine is and how it can be used to implement features like context and layout.
-- childExpirationTime, renderExpirationTime
-- what is key used for?
-
 [](https://medium.com/react-in-depth/in-depth-explanation-of-state-and-props-update-in-react-51ab94563311)
 
 ## Diff
@@ -406,6 +394,8 @@ function deleteChild(returnFiber: Fiber, childToDelete: Fiber): void {
 
 3. 如果新节点是一个数组。
 
+key的作用就是为了尽可能的复用原节点，减少不必要的创建和删除节点的操作。
+
 在第一次循环中，依次对比新节点和老节点，直到有一个不匹配或者两个列表其中一个被遍历完成；
 
 如果他们之间的key相同，则重用之前的FiberNode, 否则直接跳出循环。
@@ -422,10 +412,51 @@ function deleteChild(returnFiber: Fiber, childToDelete: Fiber): void {
 
 ## Hooks
 
+初次渲染：
+
+每次使用useState的使用，会创建一个hooks对象，保存了本次的初始state, 以及下一个hooks的引用。第一个hooks的引用保存在函数的fiber节点的memoriedState中。
+
+这就是为什么hoos必须是严格按照顺序执行，因为react依赖这个顺序来判断每个useState调用所对应的state对象，以及其更新的队列。
 
 
+更新：
+
+当调用setState的时候，react将需要更新的状态加入到队列中。并且在当前fiberNode执行一次调度更新任务。
+
+在调度更新中，react会调用currentHooks.next来获取当前的useState调用对应的hooks，并将其保存的更新队列(批量更新)用来计算出新的state, 同时也是一个简单的reducer来计算，方便复用useReducer的逻辑，计算出新的state之后返回给用户，这样return出来的react Element就会使用新的state来渲染页面了。
+
+```js
+function basicStateReducer<S>(state: S, action: BasicStateAction<S>): S {
+  return typeof action === 'function' ? action(state) : action;
+}
+```
+
+### Q&A:
 
 
+- how priority is tracked and propagated through the fiber tree.
+- how the scheduler knows when to pause and resume work.
+- how the scheduler finds the next unit of work to perform.
+- how work is flushed and marked as complete.
+- how side-effects (such as lifecycle methods) work.
+
+  会在commit阶段根据其effectTag来执行对应的操作。
+
+  ```js
+  export const Placement = /*             */ 0b000000000010;
+  export const Update = /*                */ 0b000000000100;
+  export const PlacementAndUpdate = /*    */ 0b000000000110;
+  export const Deletion = /*              */ 0b000000001000;
+  export const ContentReset = /*          */ 0b000000010000;
+  export const Callback = /*              */ 0b000000100000;
+  export const DidCapture = /*            */ 0b000001000000;
+  export const Ref = /*                   */ 0b000010000000;
+  export const Snapshot = /*              */ 0b000100000000;
+  export const Passive = /*               */ 0b001000000000;
+
+  // Passive & Update & Callback & Ref & Snapshot
+  export const LifecycleEffectMask = /*   */ 0b001110100100;
+  ```
 
 
 
