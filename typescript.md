@@ -670,6 +670,16 @@ const handleChange = (ev: React.MouseEvent<HTMLDivElement>) => { ... }
 <div onMouseMove={handleChange} ... />
 ```
 
+
+#### defaultProps和props类型推断冲突
+
+- Non-null assertion operator(非空断言语句)
+- Component type casting(组件类型重置)
+- High order function for defining defaultProps(高阶组件)
+- Props getter function(Getter函数)
+
+refrence: [react-typescript-and-defaultprops-dilemma](https://medium.com/@martin_hotell/react-typescript-and-defaultprops-dilemma-ca7f81c661c7)
+
 ## Refrence
 
 [React & Redux in TypeScript - Static Typing Guide](https://github.com/piotrwitek/react-redux-typescript-guide)
